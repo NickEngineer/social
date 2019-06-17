@@ -29,6 +29,8 @@ import org.exoplatform.social.core.jpa.test.QueryNumberTest;
 import org.exoplatform.social.core.model.AvatarAttachment;
 import org.exoplatform.social.core.model.BannerAttachment;
 import org.exoplatform.social.core.profile.ProfileFilter;
+import org.exoplatform.social.core.search.Sorting.OrderBy;
+import org.exoplatform.social.core.search.Sorting.SortBy;
 import org.exoplatform.social.core.service.LinkProvider;
 import org.exoplatform.social.core.space.SpaceUtils;
 import org.exoplatform.social.core.space.impl.DefaultSpaceApplicationHandler;
@@ -319,6 +321,7 @@ public class IdentityStorageTest extends AbstractCoreTest {
     }
   }
 
+
   @MaxQueryNumber(108)
   public void testFindIdentityByExistName() throws Exception {
     String providerId = "organization";
@@ -384,21 +387,51 @@ public class IdentityStorageTest extends AbstractCoreTest {
       identity.setProfile(profile);
     }
 
-    List<Identity> result = identityStorage.getIdentities(OrganizationIdentityProvider.NAME, 0, Integer.MAX_VALUE);
-    List<String> identitiesList =
-                                result.stream().map(identity -> identity.getProfile().getFullName()).collect(Collectors.toList());
+    long offset = 0;
+    long limit = Integer.MAX_VALUE;
+    String providerId = OrganizationIdentityProvider.NAME;
 
-    assertTrue(identitiesList.size() >= total);
-    Iterator<String> iterator = identitiesList.iterator();
-    while (iterator.hasNext()) {
-      String username = (String) iterator.next();
-      if (!username.startsWith(remoteIdPrefix)) {
-        iterator.remove();
-      }
-    }
-    List<String> identitiesListBackup = new ArrayList<>(identitiesList);
-    Collections.sort(identitiesList);
-    assertEquals("List '" + identitiesList + "' is not sorted", identitiesList, identitiesListBackup);
+    String sortDirection = OrderBy.ASC.name();
+    char firstCharacter = '\0';
+    String firstCharacterFieldName = SortBy.FULLNAME.getFieldName();
+
+    String sortField = SortBy.FULLNAME.getFieldName();
+    String fieldName = Profile.FULL_NAME;
+    List<Identity> result = identityStorage.getIdentities(providerId, firstCharacterFieldName, firstCharacter, sortField, sortDirection, offset, limit);
+    assertTrue("Returned result count is not consistent", result.size() >= total);
+    assertSorted(remoteIdPrefix, fieldName, result);
+
+    fieldName = Profile.LAST_NAME;
+    sortField = SortBy.LASTNAME.getFieldName();
+
+    result = identityStorage.getIdentities(providerId, firstCharacterFieldName, firstCharacter, sortField, sortDirection, offset, limit);
+    assertTrue("Returned result count is not consistent", result.size() >= total);
+    assertSorted(remoteIdPrefix, fieldName, result);
+
+    fieldName = Profile.FIRST_NAME;
+    sortField = SortBy.FIRSTNAME.getFieldName();
+
+    result = identityStorage.getIdentities(providerId, firstCharacterFieldName, firstCharacter, sortField, sortDirection, offset, limit);
+    assertTrue("Returned result count is not consistent", result.size() >= total);
+    assertSorted(remoteIdPrefix, fieldName, result);
+
+    firstCharacter = 'f';
+    firstCharacterFieldName = SortBy.FIRSTNAME.getFieldName();
+
+    result = identityStorage.getIdentities(providerId, firstCharacterFieldName, firstCharacter, sortField, sortDirection, offset, limit);
+    assertTrue("Returned result count is not consistent", result.size() >= total);
+    assertSorted(remoteIdPrefix, fieldName, result);
+
+    firstCharacterFieldName = SortBy.FULLNAME.getFieldName();
+
+    result = identityStorage.getIdentities(providerId, firstCharacterFieldName, firstCharacter, sortField, sortDirection, offset, limit);
+    assertTrue("Returned result count is not consistent", result.size() >= total);
+    assertSorted(remoteIdPrefix, fieldName, result);
+
+    firstCharacterFieldName = SortBy.LASTNAME.getFieldName();
+
+    result = identityStorage.getIdentities(providerId, firstCharacterFieldName, firstCharacter, sortField, sortDirection, offset, limit);
+    assertTrue("Returned result should be empty", result.isEmpty());
   }
 
   @MaxQueryNumber(99)
@@ -421,90 +454,6 @@ public class IdentityStorageTest extends AbstractCoreTest {
     final List<Identity> result = identityStorage.getIdentitiesByProfileFilter(providerId, filter, 0, 1, false);
     assertEquals(0, result.size());
   }
-
-  /**
-   * Tests {@link IdenityStorage#getIdentitiesByProfileFilter(String, ProfileFilter, int, int, boolean)}
-   *
-   */
-  @MaxQueryNumber(582)
-  public void testFindIdentityByProfileFilter() throws Exception {
-    String providerId = OrganizationIdentityProvider.NAME;
-    String remoteId = "username";
-
-    Identity rootIdentity = identityStorage.findIdentity(providerId, "root");
-    int countRootIdentity = (rootIdentity == null || rootIdentity.isDeleted() || !rootIdentity.isEnable()) ? 0 : 1;
-
-    Identity identity = new Identity(providerId, remoteId);
-    identityStorage.saveIdentity(identity);
-    tearDownIdentityList.add(identity);
-
-    Profile profile = new Profile(identity);
-    profile.setProperty(Profile.FIRST_NAME, "FirstName");
-    profile.setProperty(Profile.LAST_NAME, "LastName");
-    profile.setProperty(Profile.FULL_NAME, "FirstName" + " " + "LastName");
-    profile.setProperty("position", "developer");
-    profile.setProperty("gender", "male");
-
-    identityStorage.saveProfile(profile);
-    identity.setProfile(profile);
-    final ProfileFilter filter = new ProfileFilter();
-    filter.setPosition("developer");
-    filter.setName("First");
-    final List<Identity> result = identityStorage.getIdentitiesByProfileFilter(providerId, filter, 0, 1, false);
-    assertEquals(1, result.size());
-
-    //create a new identity
-    Identity test2Identity = populateIdentity("test2", false);
-
-    //check when new identity is not deleted
-    final ProfileFilter profileFilter2 = new ProfileFilter();
-    List<Identity> foundIdentities = identityStorage.getIdentitiesByProfileFilter(providerId, profileFilter2, 0, 10, false);
-    assertEquals(2 + countRootIdentity, foundIdentities.size());
-
-    //finds the second one
-    profileFilter2.setName("g");
-    foundIdentities =  identityStorage.getIdentitiesByProfileFilter(providerId, profileFilter2, 0, 10, false);
-    assertEquals(1, foundIdentities.size());
-
-    //check when new identity is deleted
-    identityStorage.deleteIdentity(test2Identity);
-    foundIdentities = identityStorage.getIdentitiesByProfileFilter(providerId, profileFilter2, 0, 10, false);
-    assertEquals(0, foundIdentities.size());
-  }
-
-  /**
-   * Tests {@link IdenityStorage#getIdentitiesByProfileFilter(String, ProfileFilter, int, int, boolean)}
-   *
-   */
-  @MaxQueryNumber(1140)
-  public void testFindManyIdentitiesByProfileFilter() throws Exception {
-    String providerId = "organization";
-
-    int total = 10;
-    for (int i = 0; i < total; i++) {
-      String remoteId = "username" + i;
-      Identity identity = new Identity(providerId, remoteId);
-      identityStorage.saveIdentity(identity);
-      tearDownIdentityList.add(identity);
-
-      Profile profile = new Profile(identity);
-      profile.setProperty(Profile.FIRST_NAME, "FirstName" + i);
-
-      profile.setProperty(Profile.LAST_NAME, "LastName");
-      profile.setProperty(Profile.FULL_NAME, "FirstName" + i + " " + "LastName" + i);
-      profile.setProperty(Profile.POSITION, "developer");
-      profile.setProperty(Profile.GENDER, "male");
-      identity.setProfile(profile);
-      identityStorage.saveProfile(profile);
-    }
-
-    final ProfileFilter filter = new ProfileFilter();
-    filter.setPosition("developer");
-    filter.setName("FirstN");
-    final List<Identity> result = identityStorage.getIdentitiesByProfileFilter(providerId, filter, 0, total, false);
-    assertEquals(total, result.size());
-  }
-  
   /**
    * Tests {@link IdenityStorage#getIdentitiesByFirstCharaterOfNameCount(String, char)}
    * 
@@ -1034,4 +983,19 @@ public class IdentityStorageTest extends AbstractCoreTest {
       return;
     }
   }
+
+  private void assertSorted(String remoteIdPrefix, String fieldName, List<Identity> result) {
+    List<String> identitiesList = result.stream().map(identity -> identity.getProfile().getProperty(fieldName).toString()).collect(Collectors.toList());
+    Iterator<String> iterator = identitiesList.iterator();
+    while (iterator.hasNext()) {
+      String username = (String) iterator.next();
+      if (!username.startsWith(remoteIdPrefix)) {
+        iterator.remove();
+      }
+    }
+    List<String> identitiesListBackup = new ArrayList<>(identitiesList);
+    Collections.sort(identitiesList);
+    assertEquals("List '" + identitiesList + "' is not sorted", identitiesList, identitiesListBackup);
+  }
+
 }

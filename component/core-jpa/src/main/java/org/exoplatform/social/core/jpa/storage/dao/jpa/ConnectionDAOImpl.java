@@ -18,19 +18,21 @@ package org.exoplatform.social.core.jpa.storage.dao.jpa;
 
 import java.util.List;
 
-import javax.persistence.EntityManager;
-import javax.persistence.NoResultException;
-import javax.persistence.TypedQuery;
+import javax.persistence.*;
+
+import org.apache.commons.lang3.StringUtils;
 
 import org.exoplatform.commons.api.persistence.ExoTransactional;
 import org.exoplatform.commons.persistence.impl.GenericDAOJPAImpl;
 import org.exoplatform.social.core.identity.model.Identity;
+import org.exoplatform.social.core.identity.model.Profile;
 import org.exoplatform.social.core.jpa.storage.dao.ConnectionDAO;
 import org.exoplatform.social.core.jpa.storage.dao.jpa.query.RelationshipQueryBuilder;
 import org.exoplatform.social.core.jpa.storage.entity.ConnectionEntity;
 import org.exoplatform.social.core.profile.ProfileFilter;
 import org.exoplatform.social.core.relationship.model.Relationship;
 import org.exoplatform.social.core.relationship.model.Relationship.Type;
+import org.exoplatform.social.core.search.Sorting;
 
 /**
  * Created by The eXo Platform SAS
@@ -72,27 +74,11 @@ public class ConnectionDAOImpl extends GenericDAOJPAImpl<ConnectionEntity, Long>
   }
 
   @Override
-  public List<ConnectionEntity> getConnections(Identity identity, Type status, long offset, long limit) {
-    Long ownerId = Long.valueOf(identity.getId());
-
-    String queryName = null;
-    if (status == null || status == Type.ALL) {
-      queryName = "SocConnection.getConnectionsWithoutStatus";
-    } else {
-      if(status == Type.INCOMING) {
-        return getSenders(ownerId, Type.PENDING, (int) offset, (int) limit);
-      } else if(status == Type.OUTGOING) {
-        return getReceivers(ownerId, Type.PENDING, (int) offset, (int) limit);
-      } else {
-        queryName = "SocConnection.getConnectionsWithStatus";
-      }
-    }
-
-    TypedQuery<ConnectionEntity> query = getEntityManager().createNamedQuery(queryName, ConnectionEntity.class);
-    query.setParameter("identityId", ownerId);
-    if (status != null && status != Type.ALL) {
-      query.setParameter("status", status);
-    }
+  @SuppressWarnings("unchecked")
+  public List<ConnectionEntity> getConnections(Identity identity, Type status, String firstCharacterField, char firstCharacter, long offset, long limit, Sorting sorting) {
+    String sortFieldName = sorting == null || sorting.sortBy == null ? null : sorting.sortBy.getFieldName();
+    String sortDirection = sorting == null || sorting.orderBy == null ? Sorting.OrderBy.ASC.name() : sorting.orderBy.name();
+    Query query = getConnectionsQuery(identity.getId(), status, firstCharacterField, firstCharacter, sortFieldName, sortDirection);
     if (offset > 0) {
       query.setFirstResult((int) offset);
     }
@@ -254,6 +240,54 @@ public class ConnectionDAOImpl extends GenericDAOJPAImpl<ConnectionEntity, Long>
       query.setMaxResults(limit);
     }
     return query.getResultList();
+  }
+
+  private Query getConnectionsQuery(String identityId, Type status, String firstCharacterField, char firstCharacter, String sortField, String sortDirection) {
+    StringBuilder queryStringBuilder = new StringBuilder("SELECT c.* FROM SOC_CONNECTIONS c \n");
+    if (firstCharacter > 0) {
+      queryStringBuilder.append(" INNER JOIN SOC_IDENTITY_PROPERTIES identity_prop_first_char \n");
+      queryStringBuilder.append("   ON identity_prop_first_char.identity_id <> ").append(identityId).append(" \n");
+      queryStringBuilder.append("       AND (identity_prop_first_char.identity_id = c.sender_id OR identity_prop_first_char.identity_id = c.receiver_id) \n");
+      queryStringBuilder.append("       AND identity_prop_first_char.name = '").append(firstCharacterField).append("' \n");
+      queryStringBuilder.append("       AND (lower(identity_prop_first_char.value) like '" + Character.toLowerCase(firstCharacter) + "%')\n");
+    }
+    if (StringUtils.isNotBlank(sortField)) {
+      queryStringBuilder.append(" LEFT JOIN SOC_IDENTITY_PROPERTIES identity_prop \n");
+      queryStringBuilder.append("   ON identity_prop.identity_id <> ").append(identityId).append(" \n");
+      queryStringBuilder.append("       AND (identity_prop.identity_id = c.sender_id OR identity_prop.identity_id = c.receiver_id) \n");
+      queryStringBuilder.append("       AND identity_prop.name = '").append(sortField).append("' \n");
+    }
+    switch(status) {
+      case ALL:
+        queryStringBuilder.append("WHERE (c.sender_id = ").append(identityId).append(" OR c.receiver_id = ").append(identityId).append(") \n");
+        break;
+      case CONFIRMED:
+        queryStringBuilder.append("WHERE (c.sender_id =  ").append(identityId).append("  OR c.receiver_id = ").append(identityId).append(") \n");
+        queryStringBuilder.append(" AND c.status = ").append(Type.CONFIRMED.ordinal()).append(" \n");
+        break;
+      case PENDING:
+        queryStringBuilder.append("WHERE (c.sender_id = ").append(identityId).append("  OR c.receiver_id = ").append(identityId).append(") \n");
+        queryStringBuilder.append(" AND c.status = ").append(Type.PENDING.ordinal()).append(" \n");
+        break;
+      case INCOMING:
+        queryStringBuilder.append("WHERE c.receiver_id = ").append(identityId).append(" \n");
+        queryStringBuilder.append(" AND c.status = ").append(Type.PENDING.ordinal()).append(" \n");
+        break;
+      case OUTGOING:
+        queryStringBuilder.append("WHERE c.sender_id = ").append(identityId).append(" \n");
+        queryStringBuilder.append(" AND c.status = ").append(Type.PENDING.ordinal()).append(" \n");
+        break;
+      case IGNORED:
+        queryStringBuilder.append("WHERE (c.sender_id = ").append(identityId).append("  OR c.receiver_id = ").append(identityId).append(") \n");
+        queryStringBuilder.append(" AND c.status = ").append(Type.IGNORED.ordinal()).append(" \n");
+        break;
+      default:
+        break;
+    }
+    if (sortField != null) {
+      queryStringBuilder.append(" ORDER BY lower(identity_prop.value) ").append(sortDirection);
+    }
+    return getEntityManager().createNativeQuery(queryStringBuilder.toString(), ConnectionEntity.class);
   }
 
   private Long countSenderId(long receiverId, Type status) {

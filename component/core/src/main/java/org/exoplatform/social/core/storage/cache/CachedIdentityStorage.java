@@ -23,6 +23,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
+import org.apache.commons.lang3.StringUtils;
+
 import org.exoplatform.commons.utils.CommonsUtils;
 import org.exoplatform.container.PortalContainer;
 import org.exoplatform.services.cache.ExoCache;
@@ -40,6 +42,8 @@ import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvide
 import org.exoplatform.social.core.identity.provider.SpaceIdentityProvider;
 import org.exoplatform.social.core.profile.ProfileFilter;
 import org.exoplatform.social.core.profile.ProfileLoader;
+import org.exoplatform.social.core.search.Sorting;
+import org.exoplatform.social.core.search.Sorting.SortBy;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.storage.IdentityStorageException;
 import org.exoplatform.social.core.storage.api.IdentityStorage;
@@ -632,6 +636,26 @@ public class CachedIdentityStorage implements IdentityStorage {
    * {@inheritDoc}
    */
   @Override
+  public List<IdentityWithRelationship> getIdentitiesWithRelationships(String identityId,
+                                                                       String firstCharFieldName,
+                                                                       char firstChar,
+                                                                       String sortFieldName,
+                                                                       String sortDirection,
+                                                                       int offset,
+                                                                       int limit) {
+    return storage.getIdentitiesWithRelationships(identityId,
+                                                  firstCharFieldName,
+                                                  firstChar,
+                                                  sortFieldName,
+                                                  sortDirection,
+                                                  offset,
+                                                  limit);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
   public int countIdentitiesWithRelationships(String identityId) throws Exception {
     return storage.countIdentitiesWithRelationships(identityId);
   }
@@ -665,25 +689,50 @@ public class CachedIdentityStorage implements IdentityStorage {
     return storage.countSpaceMemberIdentitiesByProfileFilter(space, profileFilter, type);
   }
 
-  /**
-   * {@inheritDoc}
-   */
   @Override
-  public List<Identity> getIdentities(String providerId, long offset, long limit) {
+  public List<Identity> getIdentities(String providerId,
+                                      String firstCharacterFieldName,
+                                      char firstCharacter,
+                                      String sortField,
+                                      String sortDirection,
+                                      long offset,
+                                      long limit) {
+    ProfileFilter profileFilter = null;
+    if (firstCharacter > 0 || StringUtils.isNotBlank(sortField)) {
+      profileFilter = new ProfileFilter();
+      profileFilter.setFirstCharFieldName(firstCharacterFieldName);
+      profileFilter.setFirstCharacterOfName(firstCharacter);
+      profileFilter.setSorting(Sorting.valueOf(sortField, sortDirection));
+    }
+
     //
-    IdentityFilterKey key = new IdentityFilterKey(providerId, null);
+    IdentityFilterKey key = new IdentityFilterKey(providerId, profileFilter);
     ListIdentitiesKey listKey = new ListIdentitiesKey(key, offset, limit);
 
     //
     ListIdentitiesData keys = identitiesCache.get(new ServiceContext<ListIdentitiesData>() {
       public ListIdentitiesData execute() {
-        List<Identity> got = storage.getIdentities(providerId, offset, limit);
+        List<Identity> got = storage.getIdentities(providerId,
+                                                   firstCharacterFieldName,
+                                                   firstCharacter,
+                                                   sortField,
+                                                   sortDirection,
+                                                   offset,
+                                                   limit);
         return buildIds(got);
       }
     }, listKey);
 
     //
     return buildIdentities(keys);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  @Override
+  public List<Identity> getIdentities(String providerId, long offset, long limit) {
+    return this.getIdentities(providerId, null, '\u0000', null, null, offset, limit);
   }
 
   @Override

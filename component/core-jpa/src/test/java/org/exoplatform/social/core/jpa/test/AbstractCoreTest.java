@@ -31,8 +31,7 @@ import org.exoplatform.container.PortalContainer;
 import org.exoplatform.container.component.RequestLifeCycle;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
-import org.exoplatform.services.organization.OrganizationService;
-import org.exoplatform.services.organization.User;
+import org.exoplatform.services.organization.*;
 import org.exoplatform.services.security.ConversationState;
 import org.exoplatform.services.security.MembershipEntry;
 import org.exoplatform.social.common.RealtimeListAccess;
@@ -51,6 +50,8 @@ import org.exoplatform.social.core.space.SpaceUtils;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.social.core.storage.api.ActivityStorage;
+import org.exoplatform.webui.exception.MessageException;
+
 import org.jboss.byteman.contrib.bmunit.BMUnit;
 import org.mockito.Mockito;
 
@@ -86,22 +87,10 @@ public abstract class AbstractCoreTest extends BaseExoTestCase {
   protected ActivityStorage activityStorage;
 
   protected ProfileSearchConnector mockProfileSearch = Mockito.mock(ProfileSearchConnector.class);
-  
-  public static boolean wantCount = false;
-  private static int count;
-  private int maxQuery;
-  private boolean hasByteMan;
 
   @Override
   protected void setUp() throws Exception {
     begin();
-    // If is query number test, init byteman
-    hasByteMan = getClass().isAnnotationPresent(QueryNumberTest.class);
-    if (hasByteMan) {
-      count = 0;
-      maxQuery = 0;
-      BMUnit.loadScriptFile(getClass(), "queryCount", "src/test/resources");
-    }
     
     identityManager = getService(IdentityManager.class);
     activityManager =  getService(ActivityManager.class);
@@ -155,11 +144,6 @@ public abstract class AbstractCoreTest extends BaseExoTestCase {
    }
 
    try {
-     MaxQueryNumber queryNumber = runMethod.getAnnotation(MaxQueryNumber.class);
-     if (queryNumber != null) {
-       wantCount = true;
-       maxQuery = queryNumber.value();
-     }
      runMethod.invoke(this);
    }
    catch (InvocationTargetException e) {
@@ -170,18 +154,7 @@ public abstract class AbstractCoreTest extends BaseExoTestCase {
      e.fillInStackTrace();
      throw e;
    }
-   
-   if (hasByteMan) {
-     if (wantCount && count > maxQuery) {
-       throw new AssertionFailedError(""+ count + " JDBC queries was executed but the maximum is : " + maxQuery);
-     }
-   }
  }
-
- // Called by byteman
- public static void count() {
-   ++count;
-  }
 
   /**
    * Creates new space with out init apps.
@@ -253,8 +226,27 @@ public abstract class AbstractCoreTest extends BaseExoTestCase {
     }
   }
 
+  protected Identity createUserAndIdentity(String username) throws Exception {
+    OrganizationService organizationService = getContainer().getComponentInstanceOfType(OrganizationService.class);
+    UserHandler userHandler = organizationService.getUserHandler();
+    User user = userHandler.findUserByName(username);
+    if (user == null) {
+      user = userHandler.createUserInstance(username);
+      user.setFirstName(username);
+      user.setLastName(username);
+      user.setEmail(username + "@test.com");
+      userHandler.createUser(user, true);
+    }
+    return createIdentity(username);
+  }
+
   protected Identity createIdentity(String username) {
     Identity identity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, username, true);
+    Profile profile = new Profile(identity);
+    profile.setProperty(Profile.FIRST_NAME, username);
+    profile.setProperty(Profile.LAST_NAME, username);
+    identity.setProfile(profile);
+    identityManager.saveProfile(profile);
     if(identity.isDeleted() || !identity.isEnable()) {
       identity.setDeleted(false);
       identity.setEnable(true);
@@ -264,13 +256,19 @@ public abstract class AbstractCoreTest extends BaseExoTestCase {
     return identity;
   }
 
-  protected Identity createIdentity(String username, String email) {
+  protected Identity createIdentity(String username, String email) throws MessageException {
     Identity identity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, username, true);
+    Profile profile = new Profile(identity);
+    profile.setProperty(Profile.FIRST_NAME, username);
+    profile.setProperty(Profile.LAST_NAME, username);
+    identity.setProfile(profile);
     if(identity.isDeleted() || !identity.isEnable()) {
       identity.setDeleted(false);
       identity.setEnable(true);
       identity.getProfile().setProperty(Profile.EMAIL, email);
       identity = identityManager.updateIdentity(identity);
+      identityManager.updateProfile(profile);
+      identity.setProfile(profile);
     }
 
     return identity;

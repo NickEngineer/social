@@ -21,11 +21,8 @@ package org.exoplatform.social.core.jpa.storage.dao.jpa;
 
 import java.lang.reflect.Array;
 import java.math.BigInteger;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.Map.Entry;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -34,12 +31,15 @@ import javax.persistence.NoResultException;
 import javax.persistence.Query;
 import javax.persistence.TypedQuery;
 
+import org.apache.commons.lang3.StringUtils;
+
 import org.exoplatform.commons.api.persistence.ExoTransactional;
 import org.exoplatform.commons.persistence.impl.GenericDAOJPAImpl;
 import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.social.core.identity.model.Identity;
+import org.exoplatform.social.core.identity.model.Profile;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.jpa.search.ExtendProfileFilter;
 import org.exoplatform.social.core.jpa.storage.dao.IdentityDAO;
@@ -106,8 +106,8 @@ public class IdentityDAOImpl extends GenericDAOJPAImpl<IdentityEntity, Long> imp
   }
 
   @Override
-  public ListAccess<Map.Entry<IdentityEntity, ConnectionEntity>> findAllIdentitiesWithConnections(long identityId, String sortField) {
-    Query listQuery = getIdentitiesQuerySortedByField(OrganizationIdentityProvider.NAME, sortField);
+  public ListAccess<Map.Entry<IdentityEntity, ConnectionEntity>> findAllIdentitiesWithConnections(long identityId, String firstCharacterFieldName, char firstCharacter, String sortField, String sortDirection) {
+    Query listQuery = getIdentitiesQuerySortedByField(OrganizationIdentityProvider.NAME, firstCharacterFieldName, firstCharacter, sortField, sortDirection);
 
     TypedQuery<ConnectionEntity> connectionsQuery = getEntityManager().createNamedQuery("SocConnection.findConnectionsByIdentityIds", ConnectionEntity.class);
 
@@ -141,8 +141,8 @@ public class IdentityDAOImpl extends GenericDAOJPAImpl<IdentityEntity, Long> imp
   }
 
   @Override
-  public List<String> getAllIdsByProviderSorted(String providerId, String sortField, long offset, long limit) {
-    Query query = getIdentitiesQuerySortedByField(providerId, sortField);
+  public List<String> getAllIdsByProviderSorted(String providerId, String firstCharacterFieldName, char firstCharacter, String sortField, String sortDirection, long offset, long limit) {
+    Query query = getIdentitiesQuerySortedByField(providerId, firstCharacterFieldName, firstCharacter, sortField, sortDirection);
     return getResultsFromQuery(query, 0, offset, limit, String.class);
   }
 
@@ -289,24 +289,31 @@ public class IdentityDAOImpl extends GenericDAOJPAImpl<IdentityEntity, Long> imp
       connectionsQuery.setParameter("ids", idsLong);
       connectionsQuery.setMaxResults(Integer.MAX_VALUE);
       List<ConnectionEntity> connectionsList = connectionsQuery.getResultList();
-      Map<IdentityEntity, ConnectionEntity> map = new LinkedHashMap<IdentityEntity, ConnectionEntity>();
-      for (Long identityId : idsLong) {
-        IdentityEntity identityEntity = identitiesMap.get(identityId);
+      Map<IdentityEntity, ConnectionEntity> map = new LinkedHashMap<>();
+      for (Long identityIdLong : idsLong) {
+        IdentityEntity identityEntity = identitiesMap.get(identityIdLong);
         if (identityEntity == null) {
-          LOG.error("Can't find identity with id '{}'", identityId);
+          LOG.error("Can't find identity with id '{}'", identityIdLong);
           continue;
         }
-        CONN: for (ConnectionEntity connectionEntity : connectionsList) {
+        for (ConnectionEntity connectionEntity : connectionsList) {
           if(connectionEntity.getReceiver().getId() == identityEntity.getId() || connectionEntity.getSender().getId() == identityEntity.getId()) {
             map.put(identityEntity, connectionEntity);
-            break CONN;
+            break;
           }
         }
         if (!map.containsKey(identityEntity)) {
           map.put(identityEntity, null);
         }
       }
-      return map.entrySet().toArray(new Map.Entry[0]);
+      List<Entry<IdentityEntity, ConnectionEntity>> identities = new ArrayList<>(map.entrySet());
+      identities.sort(new Comparator<Entry<IdentityEntity, ConnectionEntity>>() {
+        @Override
+        public int compare(Entry<IdentityEntity, ConnectionEntity> o1, Entry<IdentityEntity, ConnectionEntity> o2) {
+          return idsLong.indexOf(o1.getKey().getId()) - idsLong.indexOf(o2.getKey().getId());
+        }
+      });
+      return identities.toArray(new Map.Entry[0]);
     }
 
     @Override
@@ -315,26 +322,46 @@ public class IdentityDAOImpl extends GenericDAOJPAImpl<IdentityEntity, Long> imp
     }
   }
 
-  private Query getIdentitiesQuerySortedByField(String providerId, String sortField) {
-    // Oracle and MSSQL support only 1/0 for boolean, Postgresql supports only TRUE/FALSE, MySQL supports both
+  private Query getIdentitiesQuerySortedByField(String providerId,
+                                                String firstCharacterFieldName,
+                                                char firstCharacter,
+                                                String sortField,
+                                                String sortDirection) {
+    // Oracle and MSSQL support only 1/0 for boolean, Postgresql supports only
+    // TRUE/FALSE, MySQL supports both
     String dbBoolFalse = isOrcaleDialect() || isMSSQLDialect() ? "0" : "FALSE";
     String dbBoolTrue = isOrcaleDialect() || isMSSQLDialect() ? "1" : "TRUE";
-    // Oracle Dialect in Hibernate 4 is not registering NVARCHAR correctly, see HHH-10495
-    StringBuilder queryStringBuilder =
-                                      isOrcaleDialect() ? new StringBuilder("SELECT to_char(identity_1.remote_id), identity_1.identity_id, to_char(identity_prop.value) \n")
-                                      :isMSSQLDialect() ? new StringBuilder("SELECT try_convert(varchar(200), identity_1.remote_id) as remote_id , identity_1.identity_id, try_convert(varchar(200), identity_prop.value) as identity_prop_value \n")
-                                                        : new StringBuilder("SELECT (identity_1.remote_id), identity_1.identity_id, (identity_prop.value) \n");
+    // Oracle Dialect in Hibernate 4 is not registering NVARCHAR correctly, see
+    // HHH-10495
+    StringBuilder queryStringBuilder = null;
+    if (isOrcaleDialect()) {
+      queryStringBuilder = new StringBuilder("SELECT to_char(identity_1.remote_id), identity_1.identity_id \n");
+    } else if (isMSSQLDialect()) {
+      queryStringBuilder = new StringBuilder("SELECT try_convert(varchar(200), identity_1.remote_id) as remote_id , identity_1.identity_id, try_convert(varchar(200) \n");
+    } else {
+      queryStringBuilder = new StringBuilder("SELECT identity_1.remote_id, identity_1.identity_id \n");
+    }
     queryStringBuilder.append(" FROM SOC_IDENTITIES identity_1 \n");
-    queryStringBuilder.append(" LEFT JOIN SOC_IDENTITY_PROPERTIES identity_prop \n");
-    queryStringBuilder.append("   ON identity_1.identity_id = identity_prop.identity_id \n");
-    queryStringBuilder.append("       AND identity_prop.name = '").append(sortField).append("' \n");
+    if (StringUtils.isNotBlank(firstCharacterFieldName) && firstCharacter > 0) {
+      queryStringBuilder.append(" INNER JOIN SOC_IDENTITY_PROPERTIES identity_prop_first_char \n");
+      queryStringBuilder.append("   ON identity_1.identity_id = identity_prop_first_char.identity_id \n");
+      queryStringBuilder.append("       AND identity_prop_first_char.name = '").append(firstCharacterFieldName).append("' \n");
+      queryStringBuilder.append("       AND (lower(identity_prop_first_char.value) like '" + Character.toLowerCase(firstCharacter)
+          + "%')\n");
+    }
+    if (StringUtils.isNotBlank(sortField) && StringUtils.isNotBlank(sortDirection)) {
+      queryStringBuilder.append(" LEFT JOIN SOC_IDENTITY_PROPERTIES identity_prop \n");
+      queryStringBuilder.append("   ON identity_1.identity_id = identity_prop.identity_id \n");
+      queryStringBuilder.append("       AND identity_prop.name = '").append(sortField).append("' \n");
+    }
     queryStringBuilder.append(" WHERE identity_1.provider_id = '").append(providerId).append("' \n");
     queryStringBuilder.append(" AND identity_1.deleted = ").append(dbBoolFalse).append(" \n");
     queryStringBuilder.append(" AND identity_1.enabled = ").append(dbBoolTrue).append(" \n");
-    queryStringBuilder.append(" ORDER BY identity_prop.value ASC");
 
-    Query query = getEntityManager().createNativeQuery(queryStringBuilder.toString());
-    return query;
+    if (StringUtils.isNotBlank(sortField) && StringUtils.isNotBlank(sortDirection)) {
+      queryStringBuilder.append(" ORDER BY lower(identity_prop.value) " + sortDirection);
+    }
+    return getEntityManager().createNativeQuery(queryStringBuilder.toString());
   }
 
   private <T> List<T> getResultsFromQuery(Query query, int fieldIndex, long offset, long limit, Class<T> clazz) {

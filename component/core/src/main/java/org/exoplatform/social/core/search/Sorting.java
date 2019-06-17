@@ -2,6 +2,8 @@ package org.exoplatform.social.core.search;
 
 import java.io.Serializable;
 
+import org.apache.commons.lang3.StringUtils;
+
 /**
  * @author <a href="mailto:alain.defrance@exoplatform.com">Alain Defrance</a>
  */
@@ -14,7 +16,17 @@ public class Sorting implements Serializable, Cloneable {
   }
 
   public static enum SortBy {
-    RELEVANCY, DATE, TITLE
+    RELEVANCY("relevancy"), DATE("date"), TITLE("title"), LASTNAME("lastName"), FIRSTNAME("firstName"), FULLNAME("fullName");
+
+    private String fieldName;
+
+    SortBy(String fieldName) {
+      this.fieldName = fieldName;
+    }
+
+    public String getFieldName() {
+      return fieldName;
+    }
   }
 
   public final SortBy sortBy;
@@ -31,6 +43,15 @@ public class Sorting implements Serializable, Cloneable {
 
     this.sortBy = sortBy;
     this.orderBy = orderBy;
+  }
+
+  public static final Sorting valueOf(String sortByField, String orderByField) {
+    if (StringUtils.isNotBlank(sortByField)) {
+      SortBy sortBy = SortBy.valueOf(sortByField.toUpperCase());
+      OrderBy orderBy = StringUtils.isBlank(orderByField) ? OrderBy.valueOf(orderByField) : OrderBy.ASC;
+      return new Sorting(sortBy, orderBy);
+    }
+    return null;
   }
 
   @Override

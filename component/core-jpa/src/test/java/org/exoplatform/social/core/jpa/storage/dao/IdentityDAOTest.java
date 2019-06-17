@@ -29,12 +29,10 @@ import org.exoplatform.social.core.jpa.test.BaseCoreTest;
 import org.exoplatform.social.core.relationship.model.Relationship.Type;
 
 import javax.persistence.EntityExistsException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Date;
-import java.util.Iterator;
-import java.util.List;
+
+import java.util.*;
 import java.util.Map.Entry;
+import java.util.stream.Collectors;
 
 /**
  * @author <a href="mailto:tuyennt@exoplatform.com">Tuyen Nguyen The</a>.
@@ -116,7 +114,7 @@ public class IdentityDAOTest extends BaseCoreTest {
     IdentityEntity space1 = identityDAO.create(createIdentity(SpaceIdentityProvider.NAME, "spaceABC"));
     deleteIdentities.add(space1);
 
-    ListAccess<Entry<IdentityEntity, ConnectionEntity>> identities = identityDAO.findAllIdentitiesWithConnections(identityUser0.getId(), Profile.FULL_NAME);
+    ListAccess<Entry<IdentityEntity, ConnectionEntity>> identities = identityDAO.findAllIdentitiesWithConnections(identityUser0.getId(), null, '\u0000', null, null);
     try {
       assertTrue("The identities count is incoherent", identities.getSize() >= 20L);
     } catch (Exception e) {
@@ -172,11 +170,51 @@ public class IdentityDAOTest extends BaseCoreTest {
       identityDAO.update(identityUser);
     }
 
-    List<String> identitiesList = identityDAO.getAllIdsByProviderSorted(OrganizationIdentityProvider.NAME, Profile.FULL_NAME, 0, Integer.MAX_VALUE);
+    List<String> identitiesList = identityDAO.getAllIdsByProviderSorted(OrganizationIdentityProvider.NAME,
+                                                                        null,
+                                                                        '\0',
+                                                                        null,
+                                                                        null,
+                                                                        0,
+                                                                        Integer.MAX_VALUE);
     assertTrue(identitiesList.size() >= 20);
     Iterator<String> iterator = identitiesList.iterator();
     while (iterator.hasNext()) {
-      String username = (String) iterator.next();
+      String username = iterator.next();
+      if (!username.startsWith(userPrefix)) {
+        iterator.remove();
+      }
+    }
+    List<String> identitiesListBackup = new ArrayList<>(identitiesList);
+    Collections.sort(identitiesList);
+    assertEquals("List '" + identitiesList + "' is not sorted", identitiesList, identitiesListBackup);
+  }
+
+  public void testFindAllIdentitiesWithConnectionsSorted() throws Exception {
+    String userPrefix = "userSorted";
+    for (int i = 20; i > 0; i--) {
+      String remoteId = userPrefix + i;
+      IdentityEntity identityUser = identityDAO.create(createIdentity(OrganizationIdentityProvider.NAME, remoteId));
+      deleteIdentities.add(identityUser);
+      identityUser.getProperties().put(Profile.FULL_NAME, remoteId);
+      identityDAO.update(identityUser);
+    }
+
+    IdentityEntity identityUser0 = identityDAO.create(createIdentity(OrganizationIdentityProvider.NAME, "userWithConn0"));
+    deleteIdentities.add(identityUser0);
+
+    ListAccess<Entry<IdentityEntity, ConnectionEntity>> identitiesListAccess =
+                                                                             identityDAO.findAllIdentitiesWithConnections(identityUser0.getId(),
+                                                                                                                          null,
+                                                                                                                          '\u0000',
+                                                                                                                          null,
+                                                                                                                          null);
+    Entry<IdentityEntity, ConnectionEntity>[] identitiesEntries = identitiesListAccess.load(0, Integer.MAX_VALUE);
+    List<String> identitiesList = Arrays.stream(identitiesEntries).map(entry -> entry.getKey().getRemoteId()).collect(Collectors.toList());
+    assertTrue(identitiesList.size() >= 20);
+    Iterator<String> iterator = identitiesList.iterator();
+    while (iterator.hasNext()) {
+      String username = iterator.next();
       if (!username.startsWith(userPrefix)) {
         iterator.remove();
       }

@@ -23,6 +23,8 @@ import java.util.List;
 import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.profile.ProfileFilter;
+import org.exoplatform.social.core.search.Sorting;
+import org.exoplatform.social.core.search.Sorting.SortBy;
 import org.exoplatform.social.core.storage.api.IdentityStorage;
 
 /**
@@ -131,23 +133,47 @@ public class ProfileFilterListAccess implements ListAccess<Identity> {
       switch(type) {
       case UNIFIED_SEARCH:
         identities = identityStorage.getIdentitiesForUnifiedSearch(providerId, profileFilter, offset, usedLimit);
+        break;
       default: 
           break;
       }
-    } else {
-      if (profileFilter.getFirstCharacterOfName() != EMPTY_CHARACTER) {
-        identities = identityStorage.getIdentitiesByFirstCharacterOfName(providerId, profileFilter, offset,
-                                                                         usedLimit, forceLoadProfile);
-      } else if (profileFilter.isEmpty()) {
-        if(profileFilter.getViewerIdentity() == null) {
-          identities = identityStorage.getIdentities(providerId, offset, usedLimit);
+    } else if (profileFilter == null || profileFilter.isEmpty()) {
+      if (profileFilter == null || profileFilter.getViewerIdentity() == null) {
+        if (profileFilter == null) {
+          identities = identityStorage.getIdentities(providerId,
+                                                     offset,
+                                                     usedLimit);
         } else {
-          identities = identityStorage.getIdentitiesWithRelationships(profileFilter.getViewerIdentity().getId(), offset, usedLimit);
+          String firstCharFieldName = profileFilter.getFirstCharFieldName();
+          char firstCharacter = profileFilter.getFirstCharacterOfName();
+          Sorting sorting = profileFilter.getSorting();
+          String sortFieldName = sorting == null || sorting.sortBy == null ? null : sorting.sortBy.getFieldName();
+          String sortDirection = sorting == null || sorting.sortBy == null ? null : sorting.orderBy.name();
+          identities = identityStorage.getIdentities(providerId,
+                                                     firstCharFieldName,
+                                                     firstCharacter,
+                                                     sortFieldName,
+                                                     sortDirection,
+                                                     offset,
+                                                     usedLimit);
         }
       } else {
-        identities = identityStorage.getIdentitiesForMentions(providerId, profileFilter, null, offset,
-                                                              usedLimit, forceLoadProfile);
+        String firstCharFieldName = profileFilter.getFirstCharFieldName();
+        char firstCharacter = profileFilter.getFirstCharacterOfName();
+        Sorting sorting = profileFilter.getSorting();
+        String sortFieldName = sorting == null || sorting.sortBy == null ? null : sorting.sortBy.getFieldName();
+        String sortDirection = sorting == null || sorting.sortBy == null ? null : sorting.orderBy.name();
+        identities = identityStorage.getIdentitiesWithRelationships(profileFilter.getViewerIdentity().getId(),
+                                                                    firstCharFieldName,
+                                                                    firstCharacter,
+                                                                    sortFieldName,
+                                                                    sortDirection,
+                                                                    offset,
+                                                                    usedLimit);
       }
+    } else {
+      identities = identityStorage.getIdentitiesForMentions(providerId, profileFilter, null, offset,
+                                                            usedLimit, forceLoadProfile);
     }
     if (profileFilter != null && profileFilter.getViewerIdentity() != null) {
       Iterator<? extends Identity> iterator = identities.iterator();
