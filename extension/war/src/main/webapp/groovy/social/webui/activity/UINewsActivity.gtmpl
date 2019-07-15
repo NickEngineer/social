@@ -37,7 +37,7 @@
   def labelHideAllComments = _ctx.appRes("UIActivity.label.Hide_All_Comments");
   def labelShowPreviousComments = _ctx.appRes("UIActivity.label.Show_Previous_Comments");
 
-  def labelSeeMore = _ctx.appRes("UIActivity.label.SeeMore");
+  def labelReadMore = _ctx.appRes("UIActivity.label.ReadMore");
 
   def labelOnePersonLikeThis=_ctx.appRes("UIActivity.label.One_Person_Like_This");
   def labelTwoPersonLikeThis=_ctx.appRes("UIActivity.label.Two_Person_Like_This");
@@ -202,8 +202,8 @@
   def viewerId = Utils.getViewerIdentity().getId();
 
   def activityBody = activity.body;
-  if(activityBody.length() > 400) {
-    activityBody = activityBody.substring(0, 400) + '...';
+  if(activityBody.length() > 300) {
+    activityBody = activityBody.substring(0, 300) + '...';
   }
 %>
 
@@ -302,7 +302,9 @@
                     </div>
                     <div class="newsBody">
                         $activityBody
-                        <span class="seeMore"><a href="javascript:void(0);">${labelSeeMore}</a></span>
+                        <% if(activityBody.length() > 300) { %>
+                            <span class="readMore"><a href="javascript:void(0);">${labelReadMore}</a></span>
+                        <% } %>
                     </div>
                 </div>
 		        <div class="newsRibbon"></div>
