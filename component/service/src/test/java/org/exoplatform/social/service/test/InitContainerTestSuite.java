@@ -32,7 +32,6 @@ import org.exoplatform.social.service.rest.IdentityRestServiceTest;
 import org.exoplatform.social.service.rest.notification.IntranetNotificationsRestServiceTest;
 import org.exoplatform.social.service.rest.LinkShareRestServiceTest;
 import org.exoplatform.social.service.rest.NotificationsRestServiceTest;
-import org.exoplatform.social.service.rest.PeopleRestServiceTest;
 import org.exoplatform.social.service.rest.RestCheckerTest;
 import org.exoplatform.social.service.rest.SecurityManagerTest;
 import org.exoplatform.social.service.rest.SpaceRestServiceTest;

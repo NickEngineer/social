@@ -17,8 +17,6 @@
 package org.exoplatform.social.core.manager;
 
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.io.InputStream;
 import java.util.*;
 
@@ -35,12 +33,10 @@ import org.exoplatform.commons.utils.ListAccess;
 import org.exoplatform.commons.utils.PropertyManager;
 import org.exoplatform.container.xml.InitParams;
 import org.exoplatform.portal.config.UserACL;
-import org.exoplatform.portal.webui.util.Util;
 import org.exoplatform.services.jcr.RepositoryService;
 import org.exoplatform.services.jcr.core.ManageableRepository;
 import org.exoplatform.services.jcr.ext.common.SessionProvider;
 import org.exoplatform.services.jcr.ext.hierarchy.NodeHierarchyCreator;
-import org.exoplatform.services.jcr.impl.Constants;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.services.security.ConversationState;
@@ -54,19 +50,16 @@ import org.exoplatform.social.core.activity.ActivityListener;
 import org.exoplatform.social.core.activity.ActivityListenerPlugin;
 import org.exoplatform.social.core.activity.CommentsRealtimeListAccess;
 import org.exoplatform.social.core.activity.model.ActivityFile;
-import org.exoplatform.social.core.activity.model.ActivityStream;
 import org.exoplatform.social.core.activity.model.ExoSocialActivity;
 import org.exoplatform.social.core.activity.model.ExoSocialActivityImpl;
 import org.exoplatform.social.core.application.SpaceActivityPublisher;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.identity.provider.SpaceIdentityProvider;
-import org.exoplatform.social.core.space.SpaceUtils;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.social.core.storage.ActivityStorageException;
 import org.exoplatform.social.core.storage.api.ActivityStorage;
-import org.exoplatform.social.core.storage.query.JCRProperties;
 import org.exoplatform.upload.UploadResource;
 import org.exoplatform.upload.UploadService;
 
@@ -161,6 +154,14 @@ public class ActivityManagerImpl implements ActivityManager {
   private final static String ACTIVITY_FOLDER_UPLOAD_NAME = "Activity Stream Documents";
 
   public static final String TEMPLATE_PARAMS_SEPARATOR = "|@|";
+  
+  public static final String          SEPARATOR_REGEX                 = "\\|@\\|";
+  
+  public static final String          ID                              = "id";
+
+  public static final String          STORAGE                         = "storage";
+  
+  public static final String          FILE                            = "file";
 
   /**
    * Instantiates a new activity manager.
@@ -415,7 +416,21 @@ public class ActivityManagerImpl implements ActivityManager {
    * {@inheritDoc}
    */
   public void updateActivity(ExoSocialActivity existingActivity) {
+    String activityId = existingActivity.getId();
+
+    // In order to get the added mentions in the ActivityMentionPlugin we need to
+    // pass the previous mentions in the activity, since there is no way to do so,
+    // as a solution we pass them throw the activity's template params
+    String[] previousMentions = getActivity(activityId).getMentionedIds();
     activityStorage.updateActivity(existingActivity);
+
+    if (previousMentions.length > 0) {
+      String mentions = String.join(",", previousMentions);
+      Map<String, String> mentionsTemplateParams = existingActivity.getTemplateParams();
+      mentionsTemplateParams.put("PreviousMentions", mentions);
+
+      existingActivity.setTemplateParams(mentionsTemplateParams);
+    }
     activityLifeCycle.updateActivity(existingActivity);
   }
 
@@ -454,14 +469,23 @@ public class ActivityManagerImpl implements ActivityManager {
       return;
     }
 
+    // In order to get the added mentions in the ActivityMentionPlugin we need to
+    // pass the previous mentions in the activity, since there is no way to do so,
+    // as a solution we pass them throw the activity's template params
+    String[] previousMentions = StringUtils.isEmpty(commentId) ? new String[0] : getActivity(commentId).getMentionedIds();
     activityStorage.saveComment(existingActivity, newComment);
-    //if there is any the listener to get the activity's title to do something for example: show message, send mail ...
-    //Just call the Social API to get the activity by Id and then to do by yourself.
-    //SOC-5209
-    if ( StringUtils.isEmpty(commentId)) {
+
+    if (StringUtils.isEmpty(commentId)) {
       activityLifeCycle.saveComment(newComment);
-    }
-    else {
+    } else {
+      if (previousMentions.length > 0) {
+        String mentions = String.join(",", previousMentions);
+        Map<String, String> mentionsTemplateParams = newComment.getTemplateParams() != null ? newComment.getTemplateParams()
+                                                                                            : new HashMap<>();
+        mentionsTemplateParams.put("PreviousMentions", mentions);
+
+        newComment.setTemplateParams(mentionsTemplateParams);
+      }
       activityLifeCycle.updateComment(newComment);
     }
   }
@@ -867,10 +891,66 @@ public class ActivityManagerImpl implements ActivityManager {
     return false;
   }
 
+  @Override
+  public List<String> getActivityFilesIds(ExoSocialActivity activity) {
+    List<String> values = new ArrayList<>();
+    if (activity != null) {
+      String[] ids = getParameterValues(activity.getTemplateParams(), ID);
+      String[] storages = getParameterValues(activity.getTemplateParams(), STORAGE);
+      if (ids != null && ids.length > 0) {
+        for (int i = 0; i < ids.length; i++) {
+          if (storages != null && storages.length > 0) {
+            if (storages.length > i && storages[i].equals(FILE)) {
+              values.add(ids[i]);
+            }
+          }
+        }
+      }
+    }
+    return values;
+  }
+
+  @Override
+  public ActivityFile getActivityFileById(long fileId) throws Exception {
+    FileItem file = null;
+    try {
+      file = fileService.getFile(fileId);
+    } catch (FileStorageException e) {
+      LOG.error("Failed to  get the file with id : "+ fileId, e);
+    }
+    return convertFileItemToActivityFile(file);
+
+  }
+
   public boolean isAutomaticComment(ExoSocialActivity activity) {
     // Only not automatic created comments are editable
     return activity != null && (!SpaceActivityPublisher.SPACE_APP_ID.equals(activity.getType())
         || (SpaceActivityPublisher.SPACE_APP_ID.equals(activity.getType())
             && AUTOMATIC_EDIT_TITLE_ACTIVITIES.contains(activity.getTitleId())));
   }
+
+  private String[] getParameterValues(Map<String, String> activityParams, String paramName) {
+    String[] values = null;
+    String value = activityParams.get(paramName);
+    if (value == null) {
+      value = activityParams.get(paramName.toLowerCase());
+    }
+    if (value != null) {
+      values = value.split(SEPARATOR_REGEX);
+    }
+    return values;
+  }
+
+  private ActivityFile convertFileItemToActivityFile(FileItem fileItem) throws Exception {
+    ActivityFile activityFile = new ActivityFile();
+
+    activityFile.setInputStream(fileItem.getAsStream());
+    activityFile.setName(fileItem.getFileInfo().getName());
+    activityFile.setMimeType(fileItem.getFileInfo().getMimetype());
+    long lastUpdated = fileItem.getFileInfo().getUpdatedDate() != null ? fileItem.getFileInfo().getUpdatedDate().getTime()
+                                                                       : (new Date().getTime());
+    activityFile.setLastModified(lastUpdated);
+    return activityFile;
+  }
+
 }
