@@ -74,7 +74,7 @@ public class UISpaceSettings extends UIFormInputSet {
     addUIFormInput(uiFormTypesSelectBox);
     addChild(UISpaceTemplateDescription.class, null, "UISpaceTemplateDescription");
     addUIFormInput(new UIFormTextAreaInput(SPACE_DESCRIPTION, SPACE_DESCRIPTION, "").
-             addValidator(StringLengthValidator.class, 0, 255));
+             addValidator(StringLengthValidator.class, 0, 2000));
   }
   
   @Override
