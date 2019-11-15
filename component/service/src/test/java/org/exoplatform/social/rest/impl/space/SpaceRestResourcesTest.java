@@ -1,15 +1,8 @@
 package org.exoplatform.social.rest.impl.space;
 
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Stream;
 import java.io.ByteArrayInputStream;
 import java.net.URL;
-
+import java.util.*;
 
 import javax.ws.rs.core.EntityTag;
 import javax.ws.rs.core.MultivaluedMap;
@@ -32,6 +25,7 @@ import org.exoplatform.social.core.space.impl.DefaultSpaceApplicationHandler;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
 import org.exoplatform.social.mock.MockUploadService;
+import org.exoplatform.social.rest.entity.DataEntity;
 import org.exoplatform.upload.UploadService;
 import org.exoplatform.social.rest.entity.CollectionEntity;
 import org.exoplatform.social.rest.entity.SpaceEntity;
@@ -66,11 +60,7 @@ public class SpaceRestResourcesTest extends AbstractResourceTest {
     johnIdentity = identityManager.getOrCreateIdentity("organization", "john", true);
     maryIdentity = identityManager.getOrCreateIdentity("organization", "mary", true);
     demoIdentity = identityManager.getOrCreateIdentity("organization", "demo", true);
-    Stream.of(rootIdentity, johnIdentity, maryIdentity, demoIdentity).forEach(identity -> {
-      identity.setDeleted(false);
-      identity.setEnable(true);
-      identityManager.updateIdentity(identity);
-    });
+
     spaceRestResources = new SpaceRestResourcesV1(identityManager);
     registry(spaceRestResources);
   }
@@ -260,6 +250,41 @@ public class SpaceRestResourcesTest extends AbstractResourceTest {
     assertEquals(200, response.getStatus());
     collections = (CollectionEntity) response.getEntity();
     assertEquals(2, collections.getEntities().size());
+  }
+
+  public void testGetSpaceByIdWithDeletedDisableUsers() throws Exception {
+    //root creates 1 spaces
+    Space space = getSpaceInstance(1, "root");
+    space.setMembers(new String[] {"root", "john", "mary", "demo"});
+    space.setManagers(new String[] {"root", "john"});
+    spaceService.updateSpace(space);
+
+    startSessionAs("root");
+    ContainerResponse response = service("GET", getURLResource("spaces/" + space.getId() + "/users"), "", null, null);
+    assertNotNull(response);
+    assertEquals(200, response.getStatus());
+    CollectionEntity collections = (CollectionEntity) response.getEntity();
+    List<DataEntity> dataEntities = (List<DataEntity>) collections.getEntities();
+    assertEquals(4, dataEntities.size());
+    // Make sure properties 'deleted' and 'enabled' are added to the dataEntity.
+    assertEquals(9, dataEntities.get(0).size());
+    assertEquals(true, dataEntities.get(0).containsKey("deleted"));
+    assertEquals(true, dataEntities.get(0).containsKey("enabled"));
+    assertEquals(rootIdentity.isDeleted(), dataEntities.get(0).get("deleted"));
+    assertEquals(rootIdentity.isEnable(), dataEntities.get(0).get("enabled"));
+
+    response = service("GET", getURLResource("spaces/" + space.getId() + "/users?role=manager"), "", null, null);
+    assertNotNull(response);
+    assertEquals(200, response.getStatus());
+    collections = (CollectionEntity) response.getEntity();
+    dataEntities = (List<DataEntity>) collections.getEntities();
+    // Make sure properties 'deleted' and 'enabled' are added to the dataEntity.
+    assertEquals(2, dataEntities.size());
+    assertEquals(9, dataEntities.get(0).size());
+    assertEquals(true, dataEntities.get(0).containsKey("deleted"));
+    assertEquals(true, dataEntities.get(0).containsKey("enabled"));
+    assertEquals(johnIdentity.isDeleted(), dataEntities.get(0).get("deleted"));
+    assertEquals(johnIdentity.isEnable(), dataEntities.get(0).get("enabled"));
   }
 
   public void testGetActivitiesSpaceById() throws Exception {
