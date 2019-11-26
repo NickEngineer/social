@@ -56,11 +56,10 @@
     <!-- Project Dependencies                     -->
     <!-- **************************************** -->
     <org.exoplatform.depmgt.version>17.x-lightweight-SNAPSHOT</org.exoplatform.depmgt.version>
-    <!-- JCR Project Dependencies -->
+    <!-- Core Project Dependencies -->
     <org.exoplatform.kernel.version>6.0.x-lightweight-SNAPSHOT</org.exoplatform.kernel.version>
     <org.exoplatform.core.version>6.0.x-lightweight-SNAPSHOT</org.exoplatform.core.version>
     <org.exoplatform.ws.version>6.0.x-lightweight-SNAPSHOT</org.exoplatform.ws.version>
-    <org.exoplatform.jcr.version>6.0.x-lightweight-SNAPSHOT</org.exoplatform.jcr.version>
     <!-- GateIn Project Dependencies -->
     <org.gatein.common.version>2.2.2.Final</org.gatein.common.version>
     <!-- Platform Project Dependencies -->
@@ -109,11 +108,6 @@
       <dependency>
         <groupId>org.exoplatform.social</groupId>
         <artifactId>social-component-core</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.exoplatform.social</groupId>
-        <artifactId>social-component-core-jpa</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
@@ -365,14 +359,6 @@
         <groupId>org.exoplatform.gatein.wci</groupId>
         <artifactId>wci-wci</artifactId>
         <version>${org.exoplatform.gatein.wci.version}</version>
-      </dependency>
-      <!-- Import versions from jcr project -->
-      <dependency>
-        <groupId>org.exoplatform.jcr</groupId>
-        <artifactId>jcr-parent</artifactId>
-        <version>${org.exoplatform.jcr.version}</version>
-        <type>pom</type>
-        <scope>import</scope>
       </dependency>
       <!-- Import versions from ws project -->
       <dependency>
