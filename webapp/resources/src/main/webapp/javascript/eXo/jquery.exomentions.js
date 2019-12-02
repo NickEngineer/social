@@ -1097,6 +1097,9 @@
     }
 
     function disabledPlaceholder() {
+      if( !settings.idAction || settings.idAction.length() === 0 ) {
+		return;
+	  }
       elmInputBox.parent().find('div.placeholder:first').hide().css('top', '-100px');
       var action = $('#' + settings.idAction);
       if (action.length > 0 && action.attr('disabled') === 'disabled') {
