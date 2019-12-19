@@ -70,7 +70,15 @@
       commentButton.click(function(event) {
         var commentId = commentButton.data("comment-id");
         var clickAction = commentButton.data("click").replace("COMMENTID", (commentId ? commentId : ""));
+        var currentComposerComment = 'CommentTextarea' + UIActivity.activityId;
         eval(clickAction);
+        try {
+          if (CKEDITOR.instances[currentComposerComment]) {
+              CKEDITOR.instances[currentComposerComment].destroy(true);
+          }
+        } catch (e) {
+          console.log(e);
+        }
       });
     },
 
@@ -403,7 +411,16 @@
                        event.stopPropagation();
                        var commentId = editCommentButton.data("edit-comment-id");
                        var clickAction = editCommentButton.data("click").replace("COMMENTID", (commentId ? commentId : ""));
+                       var currentComposerEditComment = 'composerEditComment' + commentId;
                        eval(clickAction);
+                       try {
+                         if (CKEDITOR.instances[currentComposerEditComment]) {
+                             CKEDITOR.instances[currentComposerEditComment].destroy(true);
+                         }
+                       } catch (e) {
+                         console.log(e);
+                       }
+
                      });
 
 
@@ -690,12 +707,15 @@
       //$('textarea#composerInput').exoMentions('reset');
       // This is work around, if we call method setData('') of ckeditor,
       // it will cancel the suggester plugin due to it replace all content in iframe
-      var editor = CKEDITOR.instances["composerInput"];
-      if (editor.mode != 'source') {
-        if (editor.document) $(editor.document.getBody().$).html('');
-      } else {
-        $(editor.container.$).find(".cke_source").html('');
+      var editor = window.CKEDITOR && window.CKEDITOR.instances && window.CKEDITOR.instances.composerInput;
+      if (editor) {
+        if (editor.mode != 'source') {
+          if (editor.document) $(editor.document.getBody().$).html('');
+        } else {
+          $(editor.container.$).find(".cke_source").html('');
+        }
       }
+
       $('.composerLimited').addClass('hide');
 
       var container = $('#ComposerContainer');

@@ -152,8 +152,8 @@
     }
   }
 
-  activityPostedTime = uicomponent.getPostedTimeString(_ctx, activity.postedTime);
-  activityUpdatedTime = uicomponent.getPostedTimeString(_ctx,activity.updated.getTime());
+  activityPostedTime = uicomponent.getRelativeTimeLabel(_ctx, activity.postedTime);
+  activityUpdatedTime = uicomponent.getRelativeTimeLabel(_ctx, activity.updated.getTime());
 
   def ownerIdentity = uicomponent.ownerIdentity;
   def profile = ownerIdentity.profile;
@@ -320,7 +320,7 @@
       <% } %>
 
     <%
-    def commenterFullName, commenterProfileUri, commentMessage, commentPostedTime, commenterAvatarImgSrc;
+    def commenterFullName, commenterProfileUri, commentMessage, commentPostedTime, commenterAvatarImgSrc, commentAbsolutePostedTime;
     def first = true, commentContentClass;
     def commentCounter = 0;
     def subCommentSize = 0;
@@ -375,9 +375,10 @@
            }
       }
       commentMessage = it.title;
-      commentPostedTime = uicomponent.getPostedTimeString(_ctx, it.postedTime);
-      commentEditedTime = uicomponent.getPostedTimeString(_ctx, it.updated.getTime());
+      commentPostedTime = uicomponent.getRelativeTimeLabel(_ctx, it.postedTime);
+      commentEditedTime = uicomponent.getRelativeTimeLabel(_ctx, it.updated.getTime());
       commentEditedTime = _ctx.appRes("UIActivity.label.EditedFrom").replace("{0}",commentEditedTime);
+      commentAbsolutePostedTime = uicomponent.getAbsolutePostedTime(it.postedTime);
       commenterAvatarImgSrc = id.profile.avatarUrl;
       if (!commenterAvatarImgSrc) commenterAvatarImgSrc = LinkProvider.PROFILE_DEFAULT_AVATAR_URL;
       def commentId = it.parentCommentId == null ? it.id : it.parentCommentId;
@@ -417,6 +418,7 @@
             _ctx.put("activityID", activity.id);
             _ctx.put("commentPostedTime", commentPostedTime);
             _ctx.put("commentEditedTime", commentEditedTime);
+            _ctx.put("commentAbsolutePostedTime", commentAbsolutePostedTime);
             _ctx.include("war:/groovy/social/webui/activity/UIActivityCommentActions.gtmpl");
         %>
       <%

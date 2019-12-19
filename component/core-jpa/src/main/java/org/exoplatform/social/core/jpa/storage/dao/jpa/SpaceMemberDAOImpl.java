@@ -50,7 +50,8 @@ public class SpaceMemberDAOImpl extends GenericDAOJPAImpl<SpaceMemberEntity, Lon
                                        String firstCharacterFieldName,
                                        char firstCharacter,
                                        String sortField,
-                                       String sortDirection) {
+                                       String sortDirection,
+                                       boolean filterDisabled) {
     if (userNames == null || userNames.isEmpty()) {
       return Collections.emptyList();
     }
@@ -91,8 +92,11 @@ public class SpaceMemberDAOImpl extends GenericDAOJPAImpl<SpaceMemberEntity, Lon
       queryStringBuilder.append("'").append(userNames.get(i)).append("'");
     }
     queryStringBuilder.append(")\n");
-    queryStringBuilder.append(" AND identity_1.deleted = ").append(dbBoolFalse).append(" \n");
-    queryStringBuilder.append(" AND identity_1.enabled = ").append(dbBoolTrue).append(" \n");
+
+    if (filterDisabled) {
+      queryStringBuilder.append(" AND identity_1.deleted = ").append(dbBoolFalse).append(" \n");
+      queryStringBuilder.append(" AND identity_1.enabled = ").append(dbBoolTrue).append(" \n");
+    }
 
     if (StringUtils.isNotBlank(sortField) && StringUtils.isNotBlank(sortDirection)) {
       queryStringBuilder.append(" ORDER BY lower(identity_prop.value) " + sortDirection);
@@ -127,15 +131,10 @@ public class SpaceMemberDAOImpl extends GenericDAOJPAImpl<SpaceMemberEntity, Lon
     if (limit <= 0) {
       throw new IllegalArgumentException("limit must be > 0");
     }
-    StringBuilder queryStringBuilder = new StringBuilder("SELECT spaceMember.USER_ID \n");
-    queryStringBuilder.append(" FROM SOC_SPACES_MEMBERS spaceMember \n");
-    queryStringBuilder.append(" INNER JOIN SOC_IDENTITIES identity \n");
-    queryStringBuilder.append("   ON spaceMember.USER_ID = identity.REMOTE_ID \n");
-    queryStringBuilder.append("       AND identity.ENABLED = TRUE ");
-    queryStringBuilder.append("       AND identity.DELETED = FALSE ");
-    queryStringBuilder.append("       WHERE spaceMember.STATUS = '").append(status.ordinal()).append("' \n");
-    queryStringBuilder.append("       AND spaceMember.SPACE_ID = '").append(spaceId).append("' \n");
-    Query query = getEntityManager().createNativeQuery(queryStringBuilder.toString());
+    TypedQuery<String> query = getEntityManager().createNamedQuery("SpaceMember.getSpaceMembersByStatus",
+                                                                   String.class);
+    query.setParameter("status", status);
+    query.setParameter("spaceId", spaceId);
     query.setFirstResult(offset);
     query.setMaxResults(limit);
     return query.getResultList();
@@ -149,16 +148,10 @@ public class SpaceMemberDAOImpl extends GenericDAOJPAImpl<SpaceMemberEntity, Lon
     if (spaceId == null || spaceId == 0) {
       throw new IllegalArgumentException("spaceId is null or equals to 0");
     }
-    StringBuilder queryStringBuilder = new StringBuilder("SELECT count(*) \n");
-    queryStringBuilder.append(" FROM SOC_SPACES_MEMBERS spaceMember \n");
-    queryStringBuilder.append(" INNER JOIN SOC_IDENTITIES identity \n");
-    queryStringBuilder.append("   ON spaceMember.USER_ID = identity.REMOTE_ID \n");
-    queryStringBuilder.append("       AND identity.DELETED = FALSE ");
-    queryStringBuilder.append("       AND identity.ENABLED = TRUE ");
-    queryStringBuilder.append("       WHERE spaceMember.STATUS = '").append(status.ordinal()).append("' \n");
-    queryStringBuilder.append("       AND spaceMember.SPACE_ID = '").append(spaceId).append("' \n");
-    Query query = getEntityManager().createNativeQuery(queryStringBuilder.toString());
-    return ((Number) query.getSingleResult()).intValue();
+    TypedQuery<Long> query = getEntityManager().createNamedQuery("SpaceMember.countSpaceMembersByStatus", Long.class);
+    query.setParameter("status", status);
+    query.setParameter("spaceId", spaceId);
+    return query.getSingleResult().intValue();
   }
 
   @Override

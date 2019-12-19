@@ -412,10 +412,20 @@ public class ActivityManagerImpl implements ActivityManager {
     return activityStorage.getSubComments(comment);
   }
 
+
+
   /**
    * {@inheritDoc}
    */
   public void updateActivity(ExoSocialActivity existingActivity) {
+    //by default, event is broadcasted
+    updateActivity(existingActivity,true);
+  }
+
+  /**
+   * {@inheritDoc}
+   */
+  public void updateActivity(ExoSocialActivity existingActivity, boolean broadcast) {
     String activityId = existingActivity.getId();
 
     // In order to get the added mentions in the ActivityMentionPlugin we need to
@@ -426,12 +436,14 @@ public class ActivityManagerImpl implements ActivityManager {
 
     if (previousMentions.length > 0) {
       String mentions = String.join(",", previousMentions);
-      Map<String, String> mentionsTemplateParams = existingActivity.getTemplateParams();
+      Map<String, String> mentionsTemplateParams = existingActivity.getTemplateParams() != null ? existingActivity.getTemplateParams() : new HashMap<>();
       mentionsTemplateParams.put("PreviousMentions", mentions);
 
       existingActivity.setTemplateParams(mentionsTemplateParams);
     }
-    activityLifeCycle.updateActivity(existingActivity);
+    if (broadcast) {
+      activityLifeCycle.updateActivity(existingActivity);
+    }
   }
 
   /**
@@ -452,19 +464,31 @@ public class ActivityManagerImpl implements ActivityManager {
   /**
    * {@inheritDoc}
    */
-  public void saveComment(ExoSocialActivity existingActivity, ExoSocialActivity newComment) throws
-          ActivityStorageException {
+  public void saveComment(ExoSocialActivity existingActivity, ExoSocialActivity newComment) {
     if (existingActivity == null) {
       throw new ActivityStorageException(ActivityStorageException.Type.FAILED_TO_SAVE_COMMENT, "Activity cannot be NULL");
     }
+    if (existingActivity.getId() == null) {
+      LOG.debug("Comment could not be saved because activity id is null.");
+      return;
+    }
     String activityType = existingActivity.getType();
+    String commentActivityType = newComment.getType();
     String commentId = newComment.getId();
-    //Activity Type is disable , comment's can't be added
-    //existingActivity.getId() == null for the new activity if it's disabled
-    //comment should be added for the old created activity if it's disabled
-    if (existingActivity!= null && existingActivity.getId() == null && activityType != null && activityTypesRegistry.get(activityType) != null && !activityTypesRegistry.get(activityType)) {
+    // If activity Type is disabled, comment's can't be added
+    // If comment activity Type is disabled, comment's can't be added
+    // If existingActivity.getId() == null for the new activity if it's disabled
+    // comment should be added for the old created activity if it's disabled
+    boolean commentActivityTypeDisabled = commentActivityType != null && activityTypesRegistry.containsKey(commentActivityType) && activityTypesRegistry.get(commentActivityType) == Boolean.FALSE;
+    boolean activityTypeDisabled = activityType != null && activityTypesRegistry.containsKey(activityType) && activityTypesRegistry.get(activityType) == Boolean.FALSE;
+    if (commentActivityTypeDisabled || activityTypeDisabled) {
       if (LOG.isDebugEnabled()) {
-        LOG.debug("Comment could not be saved. Activity Type {} has been disabled.", activityType);
+        if (activityTypeDisabled) {
+          LOG.debug("Comment could not be saved. Activity Type {} is disabled.", activityType);
+        }
+        if (commentActivityTypeDisabled) {
+          LOG.debug("Comment could not be saved. Comment activity Type {} is disabled.", commentActivityType);
+        }
       }
       return;
     }
@@ -480,8 +504,7 @@ public class ActivityManagerImpl implements ActivityManager {
     } else {
       if (previousMentions.length > 0) {
         String mentions = String.join(",", previousMentions);
-        Map<String, String> mentionsTemplateParams = newComment.getTemplateParams() != null ? newComment.getTemplateParams()
-                                                                                            : new HashMap<>();
+        Map<String, String> mentionsTemplateParams = newComment.getTemplateParams() != null ? newComment.getTemplateParams() : new HashMap<>();
         mentionsTemplateParams.put("PreviousMentions", mentions);
 
         newComment.setTemplateParams(mentionsTemplateParams);
@@ -531,7 +554,8 @@ public class ActivityManagerImpl implements ActivityManager {
     }
     identityIds = (String[]) ArrayUtils.add(identityIds, identity.getId());
     existingActivity.setLikeIdentityIds(identityIds);
-    updateActivity(existingActivity);
+    //broadcast is false : we don't want to launch update listeners for a like
+    updateActivity(existingActivity, false);
     if(existingActivity.isComment()){
       activityLifeCycle.likeComment(existingActivity);
     } else {
@@ -550,7 +574,8 @@ public class ActivityManagerImpl implements ActivityManager {
     if (ArrayUtils.contains(identityIds, identity.getId())) {
       identityIds = (String[]) ArrayUtils.removeElement(identityIds, identity.getId());
       activity.setLikeIdentityIds(identityIds);
-      updateActivity(activity);
+      //broadcast is false : we don't want to launch update listeners for a like
+      updateActivity(activity, false);
     } else {
       LOG.warn("activity is not liked by identity: " + identity);
     }

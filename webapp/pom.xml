@@ -22,7 +22,7 @@
   <parent>
     <artifactId>social</artifactId>
     <groupId>org.exoplatform.social</groupId>
-    <version>5.3.x-SNAPSHOT</version>
+    <version>6.0.x-SNAPSHOT</version>
   </parent>
   <artifactId>social-webapp</artifactId>
   <packaging>pom</packaging>
@@ -32,7 +32,6 @@
     <module>resources</module>
     <module>portlet</module>
     <module>juzu-portlet</module>
-    <module>opensocial</module>
     <module>vue-portlet</module>
   </modules>
 </project>

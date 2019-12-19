@@ -444,10 +444,9 @@ public class IdentityManagerImpl implements IdentityManager {
                  new IllegalStateException("User '" + remoteId
                      + "' should be marked as deleted since it wasn't found in IDM store"));
       }
-      if (forceLoadOrReloadProfile) {
-        Profile profile = this.getIdentityStorage().loadProfile(result.getProfile());
-        result.setProfile(profile);
-      }
+      Profile profile = this.getIdentityStorage().loadProfile(result.getProfile());
+      profile.setIdentity(result);
+      result.setProfile(profile);
     }
     returnIdentity = result;
     return returnIdentity;
@@ -628,7 +627,8 @@ public class IdentityManagerImpl implements IdentityManager {
                                      String firstCharacterFieldName,
                                      char firstCharacter,
                                      String sortField,
-                                     String sortDirection) {
+                                     String sortDirection,
+                                     boolean filterDisabled) {
     if (StringUtils.isBlank(firstCharacterFieldName)) {
       firstCharacterFieldName = this.getFirstCharacterFiltering();
     }
@@ -638,6 +638,15 @@ public class IdentityManagerImpl implements IdentityManager {
     if (StringUtils.isBlank(sortDirection)) {
       sortDirection = this.getDefaultSorting().orderBy.name();
     }
-    return identityStorage.sortIdentities(identityRemoteIds, firstCharacterFieldName, firstCharacter, sortField, sortDirection);
+    return identityStorage.sortIdentities(identityRemoteIds, firstCharacterFieldName, firstCharacter, sortField, sortDirection, filterDisabled);
+  }
+
+  @Override
+  public List<String> sortIdentities(List<String> identityRemoteIds,
+                                     String firstCharacterFieldName,
+                                     char firstCharacter,
+                                     String sortField,
+                                     String sortDirection) {
+    return sortIdentities(identityRemoteIds, firstCharacterFieldName, firstCharacter, sortField, sortDirection, true);
   }
 }

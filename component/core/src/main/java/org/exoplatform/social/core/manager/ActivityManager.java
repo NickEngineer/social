@@ -105,6 +105,19 @@ public interface ActivityManager {
   void updateActivity(ExoSocialActivity activity);
 
   /**
+   * Updates an existing activity.
+   *
+   * @param activity The activity to be updated.
+   * @param broadcast If the broadcast value is true , then the ActivityManager
+   *     should broadcast the event to all the listener that register on event updateActivity
+   *     *          user event listener will be called in the createUser method.
+   * @LevelAPI Platform
+   */
+  default void updateActivity(ExoSocialActivity activity, boolean broadcast) {
+    this.updateActivity(activity);
+  }
+
+  /**
    * Deletes a specific activity.
    *
    * @param activity The activity to be deleted.

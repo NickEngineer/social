@@ -22,12 +22,12 @@
   <parent>
     <artifactId>maven-parent-pom</artifactId>
     <groupId>org.exoplatform</groupId>
-    <version>19</version>
+    <version>21-M01</version>
     <relativePath />
   </parent>
   <groupId>org.exoplatform.social</groupId>
   <artifactId>social</artifactId>
-  <version>5.3.x-SNAPSHOT</version>
+  <version>6.0.x-SNAPSHOT</version>
   <packaging>pom</packaging>
   <name>eXo PLF:: Social</name>
   <description>eXo Social - Enterprise Social Networking</description>
@@ -55,22 +55,21 @@
     <!-- **************************************** -->
     <!-- Project Dependencies                     -->
     <!-- **************************************** -->
-    <org.exoplatform.depmgt.version>16-SNAPSHOT</org.exoplatform.depmgt.version>
+    <org.exoplatform.depmgt.version>17.x-SNAPSHOT</org.exoplatform.depmgt.version>
     <!-- JCR Project Dependencies -->
-    <org.exoplatform.kernel.version>5.3.x-SNAPSHOT</org.exoplatform.kernel.version>
-    <org.exoplatform.core.version>5.3.x-SNAPSHOT</org.exoplatform.core.version>
-    <org.exoplatform.ws.version>5.3.x-SNAPSHOT</org.exoplatform.ws.version>
-    <org.exoplatform.jcr.version>5.3.x-SNAPSHOT</org.exoplatform.jcr.version>
+    <org.exoplatform.kernel.version>6.0.x-SNAPSHOT</org.exoplatform.kernel.version>
+    <org.exoplatform.core.version>6.0.x-SNAPSHOT</org.exoplatform.core.version>
+    <org.exoplatform.ws.version>6.0.x-SNAPSHOT</org.exoplatform.ws.version>
+    <org.exoplatform.jcr.version>6.0.x-SNAPSHOT</org.exoplatform.jcr.version>
     <!-- GateIn Project Dependencies -->
-    <org.apache.shindig.version>2.5.2</org.apache.shindig.version>
     <org.gatein.common.version>2.2.2.Final</org.gatein.common.version>
     <!-- Platform Project Dependencies -->
-    <org.exoplatform.gatein.wci.version>5.3.x-SNAPSHOT</org.exoplatform.gatein.wci.version>
-    <org.exoplatform.gatein.pc.version>5.3.x-SNAPSHOT</org.exoplatform.gatein.pc.version>
-    <org.exoplatform.gatein.portal.version>5.3.x-SNAPSHOT</org.exoplatform.gatein.portal.version>
-    <org.exoplatform.commons.version>5.3.x-SNAPSHOT</org.exoplatform.commons.version>
-    <org.exoplatform.platform-ui.version>5.3.x-SNAPSHOT</org.exoplatform.platform-ui.version>
-    <org.exoplatform.doc.doc-style.version>5.3.x-SNAPSHOT</org.exoplatform.doc.doc-style.version>
+    <org.exoplatform.gatein.wci.version>6.0.x-SNAPSHOT</org.exoplatform.gatein.wci.version>
+    <org.exoplatform.gatein.pc.version>6.0.x-SNAPSHOT</org.exoplatform.gatein.pc.version>
+    <org.exoplatform.gatein.portal.version>6.0.x-SNAPSHOT</org.exoplatform.gatein.portal.version>
+    <org.exoplatform.commons.version>6.0.x-SNAPSHOT</org.exoplatform.commons.version>
+    <org.exoplatform.platform-ui.version>6.0.x-SNAPSHOT</org.exoplatform.platform-ui.version>
+    <org.exoplatform.doc.doc-style.version>6.0.x-SNAPSHOT</org.exoplatform.doc.doc-style.version>
     <!-- For surefire and failsafe to be compatible with jacoco -->
     <argLine>-Xmx1024m -XX:MaxPermSize=512m</argLine>
     <!-- Elasticsearch dependencies -->
@@ -120,11 +119,6 @@
       <dependency>
         <groupId>org.exoplatform.social</groupId>
         <artifactId>social-component-notification</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.exoplatform.social</groupId>
-        <artifactId>social-component-opensocial</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
@@ -181,18 +175,6 @@
         <groupId>org.exoplatform.social</groupId>
         <artifactId>social-extras-widget-rest</artifactId>
         <version>${project.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.exoplatform.social</groupId>
-        <artifactId>social-webapp-opensocial</artifactId>
-        <version>${project.version}</version>
-        <type>war</type>
-      </dependency>
-      <dependency>
-        <groupId>org.exoplatform.social</groupId>
-        <artifactId>social-webapp-opensocial</artifactId>
-        <version>${project.version}</version>
-        <type>pom</type>
       </dependency>
       <dependency>
         <groupId>org.exoplatform.social</groupId>
@@ -350,11 +332,6 @@
       </dependency>
       <dependency>
         <groupId>org.exoplatform.gatein.portal</groupId>
-        <artifactId>exo.portal.gadgets-core</artifactId>
-        <version>${org.exoplatform.gatein.portal.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.exoplatform.gatein.portal</groupId>
         <artifactId>exo.portal.webui.dashboard</artifactId>
         <version>${org.exoplatform.gatein.portal.version}</version>
       </dependency>
@@ -382,22 +359,6 @@
         <groupId>org.exoplatform.gatein.portal</groupId>
         <artifactId>exo.portal.webui.portlet</artifactId>
         <version>${org.exoplatform.gatein.portal.version}</version>
-      </dependency>
-      <!-- To be replaced by an import of GateIn Shinding parent POM -->
-      <dependency>
-        <groupId>org.apache.shindig</groupId>
-        <artifactId>shindig-common</artifactId>
-        <version>${org.apache.shindig.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.shindig</groupId>
-        <artifactId>shindig-gadgets</artifactId>
-        <version>${org.apache.shindig.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.shindig</groupId>
-        <artifactId>shindig-social-api</artifactId>
-        <version>${org.apache.shindig.version}</version>
       </dependency>
       <!-- To be replaced by an import of GateIn WCI parent POM -->
       <dependency>
