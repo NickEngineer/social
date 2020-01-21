@@ -21,6 +21,7 @@ import java.util.List;
 
 import org.exoplatform.social.core.identity.model.Identity;
 import org.exoplatform.social.core.identity.provider.SpaceIdentityProvider;
+import org.exoplatform.social.core.jpa.storage.entity.AppEntity.Status;
 import org.exoplatform.social.core.space.impl.DefaultSpaceApplicationHandler;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
@@ -28,15 +29,19 @@ import org.exoplatform.social.core.storage.api.IdentityStorage;
 import org.exoplatform.social.core.test.AbstractCoreTest;
 
 public class SpaceLastVisitedTest extends AbstractCoreTest {
-  private SpaceService spaceService;
-  private IdentityStorage identityStorage;
-  
-  private List<Space> tearDownSpaceList;
+  private SpaceService    spaceService;
 
-  private Identity rootIdentity;
-  private Identity johnIdentity;
-  private Identity maryIdentity;
-  private Identity demoIdentity;
+  private IdentityStorage identityStorage;
+
+  private List<Space>     tearDownSpaceList;
+
+  private Identity        rootIdentity;
+
+  private Identity        johnIdentity;
+
+  private Identity        maryIdentity;
+
+  private Identity        demoIdentity;
 
   @Override
   protected void setUp() throws Exception {
@@ -68,7 +73,7 @@ public class SpaceLastVisitedTest extends AbstractCoreTest {
 
   @Override
   protected void tearDown() throws Exception {
-    
+
     for (Space space : tearDownSpaceList) {
       Identity spaceIdentity = identityStorage.findIdentity(SpaceIdentityProvider.NAME, space.getPrettyName());
       if (spaceIdentity != null) {
@@ -85,90 +90,87 @@ public class SpaceLastVisitedTest extends AbstractCoreTest {
     super.tearDown();
   }
 
-//FIXME JCR to RDBMS Migration BUG
-//  public void testGet10SpaceLastVisited() throws Exception {
-//    int numberOfSpaces = 10;
-//    String apps = "";
-//    Space s = null;
-//    for(int i = 0; i < numberOfSpaces; i++) {
-//      apps += String.format("app%s,", i);
-//      s = getSpaceInstance(i, apps);
-//      tearDownSpaceList.add(s);
-//    }
-//    List<Space> spaces = spaceService.getLastAccessedSpace("mary", "app1", 0, 5);
-//    
-//    assertEquals(5, spaces.size());
-//    
-//    //
-//    Space space4 = spaceService.getSpaceByPrettyName("space_4");
-//    assertNotNull(space4);
-//    spaceService.updateSpaceAccessed("mary", space4);
-//    spaces = spaceService.getLastAccessedSpace("mary", "app1", 0, 5);
-//    assertEquals(5, spaces.size());
-//    Space got = spaces.get(0);
-//    assertEquals("space_1", got.getPrettyName());
-//    
-//    //
-//    Space space2 = spaceService.getSpaceByPrettyName("space_2");
-//    assertNotNull(space2);
-//    spaceService.updateSpaceAccessed("mary", space2);
-//    spaces = spaceService.getLastAccessedSpace("mary", "app1", 0, 5);
-//    assertEquals(5, spaces.size());
-//    got = spaces.get(0);
-//    assertEquals("space_1", got.getPrettyName());
-//    
-//  }
+  public void testGet10SpaceLastVisited() throws Exception {
+    int numberOfSpaces = 10;
+    String apps = "";
+    Space s = null;
+    for (int i = 0; i < numberOfSpaces; i++) {
+      apps += String.format("app%s:app%s:true:active,", i, i);
+      s = getSpaceInstance(i, apps);
+      tearDownSpaceList.add(s);
+    }
+    List<Space> spaces = spaceService.getLastAccessedSpace("mary", null, 0, 5);
 
-//  FIXME JCR to RDBMS Migration BUG
-//  public void testGet10SpaceLastVisitedAppIdNull() throws Exception {
-//    int numberOfSpaces = 10;
-//    String apps = "";
-//    Space s = null;
-//    for(int i = 0; i < numberOfSpaces; i++) {
-//      apps += String.format("app%s,", i);
-//      s = getSpaceInstance(i, apps);
-//      tearDownSpaceList.add(s);
-//    }
-//    List<Space> spaces = spaceService.getLastAccessedSpace("mary", null, 0, 5);
-//    
-//    assertEquals(5, spaces.size());
-//    
-//    //
-//    Space space4 = spaceService.getSpaceByPrettyName("space_4");
-//    assertNotNull(space4);
-//    spaceService.updateSpaceAccessed("mary", space4);
-//    spaces = spaceService.getLastAccessedSpace("mary", null, 0, 5);
-//    assertEquals(5, spaces.size());
-//    Space got = spaces.get(0);
-//    assertEquals("space_0", got.getPrettyName());
-//  }
+    assertEquals(5, spaces.size());
 
-// FIXME JCR to RDBMS Migration BUG
-//  public void testGet10SpaceLastVisitedAppId() throws Exception {
-//    int numberOfSpaces = 10;
-//    String apps = "";
-//    Space s = null;
-//    for(int i = 0; i < numberOfSpaces; i++) {
-//      apps += String.format("app%s,", i);
-//      s = getSpaceInstance(i, apps);
-//      tearDownSpaceList.add(s);
-//    }
-//    List<Space> spaces = spaceService.getLastAccessedSpace("mary", "app4", 0, 5);
-//    
-//    assertEquals(5, spaces.size());
-//    Space got = spaces.get(0);
-//    assertEquals("space_4", got.getPrettyName());
-//    
-//    //
-//    Space space2 = spaceService.getSpaceByPrettyName("space_2");
-//    assertNotNull(space2);
-//    spaceService.updateSpaceAccessed("mary", space2);
-//    spaces = spaceService.getLastAccessedSpace("mary", "app4", 0, 5);
-//    assertEquals(5, spaces.size());
-//    got = spaces.get(0);
-//    assertEquals("space_4", got.getPrettyName());
-//  }
-//  
+    //
+    Space space4 = spaceService.getSpaceByPrettyName("space_4");
+    assertNotNull(space4);
+    spaceService.updateSpaceAccessed("mary", space4);
+    spaces = spaceService.getLastAccessedSpace("mary", "app1", 0, 5);
+    assertEquals(5, spaces.size());
+    Space got = spaces.get(0);
+    assertEquals("space_4", got.getPrettyName());
+
+    //
+    Space space2 = spaceService.getSpaceByPrettyName("space_2");
+    assertNotNull(space2);
+    spaceService.updateSpaceAccessed("mary", space2);
+    spaces = spaceService.getLastAccessedSpace("mary", "app1", 0, 5);
+    assertEquals(5, spaces.size());
+    got = spaces.get(0);
+    assertEquals("space_2", got.getPrettyName());
+
+  }
+
+  public void testGet10SpaceLastVisitedAppIdNull() throws Exception {
+    int numberOfSpaces = 10;
+    String apps = "";
+    Space s = null;
+    for (int i = 0; i < numberOfSpaces; i++) {
+      apps += String.format("app%s:app%s:true:active,", i, i);
+      s = getSpaceInstance(i, apps);
+      tearDownSpaceList.add(s);
+    }
+    List<Space> spaces = spaceService.getLastAccessedSpace("mary", null, 0, 5);
+
+    assertEquals(5, spaces.size());
+
+    //
+    Space space4 = spaceService.getSpaceByPrettyName("space_4");
+    assertNotNull(space4);
+    spaceService.updateSpaceAccessed("mary", space4);
+    spaces = spaceService.getLastAccessedSpace("mary", null, 0, 5);
+    assertEquals(5, spaces.size());
+    Space got = spaces.get(0);
+    assertEquals("space_4", got.getPrettyName());
+  }
+
+  public void testGet10SpaceLastVisitedAppId() throws Exception {
+    int numberOfSpaces = 10;
+    String apps = "";
+    Space s = null;
+    for (int i = 0; i < numberOfSpaces; i++) {
+      apps += String.format("app%s:app%s:true:active,", i, i);
+      s = getSpaceInstance(i, apps);
+      tearDownSpaceList.add(s);
+    }
+    List<Space> spaces = spaceService.getLastAccessedSpace("mary", "app4", 0, 5);
+
+    assertEquals(5, spaces.size());
+    Space got = spaces.get(0);
+    assertEquals("space_4", got.getPrettyName());
+
+    //
+    Space space2 = spaceService.getSpaceByPrettyName("space_2");
+    assertNotNull(space2);
+    spaceService.updateSpaceAccessed("mary", space2);
+    spaces = spaceService.getLastAccessedSpace("mary", "app4", 0, 5);
+    assertEquals(5, spaces.size());
+    got = spaces.get(0);
+    assertEquals("space_4", got.getPrettyName());
+  }
+
   /**
    * Gets an instance of the space.
    *
@@ -190,12 +192,13 @@ public class SpaceLastVisitedTest extends AbstractCoreTest {
     space.setPriority(Space.INTERMEDIATE_PRIORITY);
     space.setGroupId("/space/space" + number);
     space.setApp(apps);
-    String[] managers = new String[] {"john", "mary"};
-    String[] members = new String[] {"john", "mary","demo"};
+    String[] managers = new String[] { "john", "mary" };
+    String[] members = new String[] { "john", "mary", "demo" };
     space.setManagers(managers);
     space.setMembers(members);
     space.setUrl(space.getPrettyName());
     this.spaceService.saveSpace(space, true);
+    restartTransaction();
     return space;
   }
 }
