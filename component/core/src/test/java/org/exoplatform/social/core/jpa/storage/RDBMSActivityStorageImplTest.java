@@ -711,24 +711,21 @@ public class RDBMSActivityStorageImplTest extends AbstractCoreTest {
     activityStorage.saveActivity(demoIdentity, activity1);
     tearDownActivityList.add(activity1);
 
-    end();
-    begin();
+    restartTransaction();
 
     ExoSocialActivity activity2 = createActivity(1);
     activity2.setTitle("hello mention @demo");
     activityStorage.saveActivity(rootIdentity, activity2);
     tearDownActivityList.add(activity2);
 
-    end();
-    begin();
+    restartTransaction();
 
     ExoSocialActivity activity3 = createActivity(1);
     activity3.setTitle("bye world");
     activityStorage.saveActivity(demoIdentity, activity3);
     tearDownActivityList.add(activity3);
 
-    end();
-    begin();
+    restartTransaction();
 
     // When
     List<ExoSocialActivity> activities = activityStorage.getActivities(demoIdentity, demoIdentity, 0, 10);
@@ -960,6 +957,7 @@ public class RDBMSActivityStorageImplTest extends AbstractCoreTest {
       activityStorage.saveActivity(owner, activity);
       LOG.info("owner = " + owner.getRemoteId() + " PostedTime = " + activity.getPostedTime());
     }
+    restartTransaction();
   }
   
   private ExoSocialActivity createActivity(int num) {
