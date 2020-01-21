@@ -164,8 +164,8 @@ public class UserRestResourcesTest extends AbstractResourceTest {
     rootActivity.setTitle("root activity");
     activityManager.saveActivityNoReturn(rootIdentity, rootActivity);
 
-    //wait to make sure the order of activities
-    Thread.sleep(10);
+    restartTransaction();
+
     ExoSocialActivity demoActivity = new ExoSocialActivityImpl();
     demoActivity.setTitle("demo activity");
     activityManager.saveActivityNoReturn(demoIdentity, demoActivity);
