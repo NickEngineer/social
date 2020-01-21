@@ -866,17 +866,6 @@ public class IdentityStorageTest extends AbstractCoreTest {
     Long bannerLastUpdated = profile.getBannerLastUpdated();
     assertNotNull(bannerLastUpdated);
 
-    restartTransaction();
-
-    // we re-attach the the banner to the profile to be sure that @Profile.bannerLastUpdated value is updated
-    profile.setProperty(Profile.BANNER, bannerAttachment);
-    identityStorage.updateProfile(profile);
-    Profile profile1 = identityStorage.loadProfile(profile);
-    Long bannerLastUpdated1 = profile1.getBannerLastUpdated();
-    assertNotNull(bannerLastUpdated1);
-    assertNotSame(bannerLastUpdated1, bannerLastUpdated);
-    assertTrue(bannerLastUpdated1 > bannerLastUpdated);
-
     stream = identityStorage.getBannerInputStreamById(identity);
     assertNotNull(stream);
 
@@ -914,7 +903,7 @@ public class IdentityStorageTest extends AbstractCoreTest {
     profile.setProperty(Profile.BANNER, bannerAttachment);
     identityStorage.updateProfile(profile);
     profile = identityStorage.loadProfile(profile);
-    bannerLastUpdated1 = profile.getBannerLastUpdated();
+    Long bannerLastUpdated1 = profile.getBannerLastUpdated();
     assertNotNull(bannerLastUpdated1);
     assertNotSame(bannerLastUpdated1, bannerLastUpdated);
     // we check that the  @Profile.bannerLastUpdated is updated with greater value
