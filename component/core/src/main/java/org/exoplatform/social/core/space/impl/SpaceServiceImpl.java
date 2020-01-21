@@ -483,16 +483,7 @@ public class SpaceServiceImpl implements SpaceService {
     Space oldSpace = getSpaceById(space.getId());
     spaceStorage.saveSpace(space, isNew);
     if (!isNew) {
-      if (!oldSpace.getVisibility().equals(space.getVisibility())) {
-        spaceLifeCycle.spaceAccessEdited(space, space.getEditor());
-      }
-
-      String oldRegistration = oldSpace.getRegistration();
-      String registration = space.getRegistration();
-      if ((oldRegistration == null && registration != null)
-          || (oldRegistration != null && !oldRegistration.equals(registration))) {
-        spaceLifeCycle.spaceRegistrationEdited(space, space.getEditor());
-      }
+      triggerSpaceModificationEvents(oldSpace, space);
     }
   }
 
@@ -1460,12 +1451,22 @@ public class SpaceServiceImpl implements SpaceService {
   /**
    * {@inheritDoc}
    */
-  public Space updateSpace(Space existingSpace) {
-    spaceStorage.saveSpace(existingSpace, false);
-    if (UpdatedField.DESCRIPTION.equals(existingSpace.getField())) {
-      spaceLifeCycle.spaceDescriptionEdited(existingSpace, existingSpace.getEditor());
+  public Space updateSpace(Space newSpace) {
+    if (newSpace == null) {
+      throw new IllegalArgumentException("space argument is mandatory");
     }
-    return existingSpace;
+    String spaceId = newSpace.getId();
+    if (StringUtils.isBlank(spaceId)) {
+      throw new IllegalStateException("space id is empty");
+    }
+    Space oldSpace = spaceStorage.getSpaceById(spaceId);
+    if (oldSpace == null) {
+      throw new IllegalStateException("Space with id '" + spaceId + "'");
+    }
+
+    spaceStorage.saveSpace(newSpace, false);
+    triggerSpaceModificationEvents(oldSpace, newSpace);
+    return newSpace;
   }
 
   public Space updateSpaceAvatar(Space existingSpace) {
@@ -1587,6 +1588,18 @@ public class SpaceServiceImpl implements SpaceService {
       }
     }
     return false;
+  }
+
+  private void triggerSpaceModificationEvents(Space oldSpace, Space newSpace) {
+    if (!StringUtils.equals(oldSpace.getDescription(), newSpace.getDescription())) {
+      spaceLifeCycle.spaceDescriptionEdited(newSpace, newSpace.getEditor());
+    }
+    if (!StringUtils.equals(oldSpace.getVisibility(), newSpace.getVisibility())) {
+      spaceLifeCycle.spaceAccessEdited(newSpace, newSpace.getEditor());
+    }
+    if (!StringUtils.equals(oldSpace.getRegistration(), newSpace.getRegistration())) {
+      spaceLifeCycle.spaceRegistrationEdited(newSpace, newSpace.getEditor());
+    }
   }
 
   private String checkSpaceEditorPermissions(Space space) {
