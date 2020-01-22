@@ -39,6 +39,7 @@ public class IdentityStorageTest extends AbstractCoreTest {
   }
 
   public void tearDown() throws Exception {
+    restartTransaction();
     for (Identity identity : tearDownIdentityList) {
       identityStorage.deleteIdentity(identity);
     }
@@ -520,52 +521,6 @@ public class IdentityStorageTest extends AbstractCoreTest {
       identityStorage.processEnabledIdentity(identity, false);
     }
     assertEquals(numberUser - numberDisableUser, identityStorage.getIdentitiesCount(OrganizationIdentityProvider.NAME));
-  }
-
-  @MaxQueryNumber(3165)
-  public void testGetSpaceMemberByProfileFilter() throws Exception {
-    populateData();
-    populateUser("username4");
-
-    Space space = new Space();
-    space.setApp("app");
-    space.setDisplayName("my space");
-    space.setPrettyName(space.getDisplayName());
-    space.setRegistration(Space.OPEN);
-    space.setDescription("add new space ");
-    space.setType(DefaultSpaceApplicationHandler.NAME);
-    space.setVisibility(Space.PUBLIC);
-    space.setPriority(Space.INTERMEDIATE_PRIORITY);
-    space.setGroupId(SpaceUtils.createGroup(space.getPrettyName(), "username4"));
-    space.setUrl(space.getPrettyName());
-    String[] managers = new String[] {};
-    String[] members = new String[] { "username1", "username2", "username3" };
-    String[] invitedUsers = new String[] {};
-    String[] pendingUsers = new String[] {};
-    space.setInvitedUsers(invitedUsers);
-    space.setPendingUsers(pendingUsers);
-    space.setManagers(managers);
-    space.setMembers(members);
-
-    spaceStorage.saveSpace(space, true);
-    tearDownSpaceList.add(space);
-
-    ProfileFilter profileFilter = new ProfileFilter();
-
-    List<Identity> identities = identityStorage.getSpaceMemberIdentitiesByProfileFilter(space, profileFilter, Type.MEMBER, 0, 2);
-    assertEquals(2, identities.size());
-
-    profileFilter.setName("0");
-    identities = identityStorage.getSpaceMemberIdentitiesByProfileFilter(space, profileFilter, Type.MEMBER, 0, 2);
-    assertEquals(0, identities.size());
-
-    profileFilter.setName("3");
-    identities = identityStorage.getSpaceMemberIdentitiesByProfileFilter(space, profileFilter, Type.MEMBER, 0, 2);
-    assertEquals(1, identities.size());
-
-    addUserToGroupWithMembership("username4", space.getGroupId(), MembershipTypeHandler.ANY_MEMBERSHIP_TYPE);
-    identities = identityStorage.getSpaceMemberIdentitiesByProfileFilter(space, new ProfileFilter(), Type.MANAGER, 0, 10);
-    assertEquals(1, identities.size());
   }
 
   @MaxQueryNumber(700)
