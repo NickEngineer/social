@@ -157,7 +157,7 @@ public class RelationshipPublisherTest extends  AbstractCoreTest {
     List<ExoSocialActivity> rootComments = activityManager.getCommentsWithListAccess(rootActivity).loadAsList(0, 10);
     assertEquals(1, rootComments.size());
     assertEquals("I&#39;m now connected with 1 user(s)",rootActivity.getTitle());
-    assertEquals("I&#39;m now connected with Demo gtn",rootComments.get(0).getTitle());
+    assertEquals("I&#39;m now connected with " + demoIdentity.getProfile().getFullName(),rootComments.get(0).getTitle());
     
     String demoActivityId =  identityStorage.getProfileActivityId(demoIdentity.getProfile(), Profile.AttachedActivityType.RELATIONSHIP);
     assertNotNull(demoActivityId);
@@ -165,7 +165,7 @@ public class RelationshipPublisherTest extends  AbstractCoreTest {
     List<ExoSocialActivity> demoComments = activityManager.getCommentsWithListAccess(demoActivity).loadAsList(0, 10);
     assertEquals(1, demoComments.size());
     assertEquals("I&#39;m now connected with 1 user(s)",demoActivity.getTitle());
-    assertEquals("I&#39;m now connected with Root Root",demoComments.get(0).getTitle());
+    assertEquals("I&#39;m now connected with " + rootIdentity.getProfile().getFullName(),demoComments.get(0).getTitle());
     
     Relationship rootToJohnRelationship = relationshipManager.inviteToConnect(rootIdentity, johnIdentity);
     relationshipManager.confirm(rootIdentity, johnIdentity);
@@ -175,7 +175,7 @@ public class RelationshipPublisherTest extends  AbstractCoreTest {
     rootComments = activityManager.getCommentsWithListAccess(rootActivity).loadAsList(0, 10);
     assertEquals(2, rootComments.size());
     assertEquals("I&#39;m now connected with 2 user(s)",rootActivity.getTitle());
-    assertEquals("I&#39;m now connected with John Anthony",rootComments.get(1).getTitle());
+    assertEquals("I&#39;m now connected with " + johnIdentity.getProfile().getFullName(),rootComments.get(1).getTitle());
     
     String johnActivityId =  identityStorage.getProfileActivityId(johnIdentity.getProfile(), Profile.AttachedActivityType.RELATIONSHIP);
     assertNotNull(johnActivityId);
@@ -183,7 +183,7 @@ public class RelationshipPublisherTest extends  AbstractCoreTest {
     List<ExoSocialActivity> johnComments = activityManager.getCommentsWithListAccess(johnActivity).loadAsList(0, 10);
     assertEquals(1, johnComments.size());
     assertEquals("I&#39;m now connected with 1 user(s)",johnActivity.getTitle());
-    assertEquals("I&#39;m now connected with Root Root",johnComments.get(0).getTitle());
+    assertEquals("I&#39;m now connected with " + rootIdentity.getProfile().getFullName(),johnComments.get(0).getTitle());
     
     //remove a connection will re-updated activity's title
     rootToJohnRelationship = relationshipManager.get(rootIdentity, johnIdentity);
@@ -234,14 +234,14 @@ public class RelationshipPublisherTest extends  AbstractCoreTest {
     List<ExoSocialActivity> rootComments = activityManager.getCommentsWithListAccess(rootActivity).loadAsList(0, 10);
     assertEquals(1, rootComments.size());
     assertEquals("I&#39;m now connected with 1 user(s)",rootActivity.getTitle());
-    assertEquals("I&#39;m now connected with Demo gtn",rootComments.get(0).getTitle());
+    assertEquals("I&#39;m now connected with " + demoIdentity.getProfile().getFullName(),rootComments.get(0).getTitle());
     String demoActivityId =  identityStorage.getProfileActivityId(demoIdentity.getProfile(), Profile.AttachedActivityType.RELATIONSHIP);
     assertNotNull(demoActivityId);
     ExoSocialActivity demoActivity = activityManager.getActivity(demoActivityId);
     List<ExoSocialActivity> demoComments = activityManager.getCommentsWithListAccess(demoActivity).loadAsList(0, 10);
     assertEquals(1, demoComments.size());
     assertEquals("I&#39;m now connected with 1 user(s)",demoActivity.getTitle());
-    assertEquals("I&#39;m now connected with Root Root",demoComments.get(0).getTitle());
+    assertEquals("I&#39;m now connected with " + rootIdentity.getProfile().getFullName(),demoComments.get(0).getTitle());
     relationshipManager.delete(rootToDemoRelationship);
     activityManager.deleteActivity(rootActivity);
     activityManager.deleteActivity(demoActivity);
