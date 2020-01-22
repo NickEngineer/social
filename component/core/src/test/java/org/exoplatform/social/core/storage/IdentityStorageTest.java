@@ -86,7 +86,13 @@ public class IdentityStorageTest extends AbstractCoreTest {
     identityStorage.deleteIdentity(tobeSavedIdentity);
 
     tobeSavedIdentity = identityStorage.findIdentity(OrganizationIdentityProvider.NAME, username);
-    assertNull("tobeSavedIdentity must be null", tobeSavedIdentity);
+    assertNotNull("tobeSavedIdentity must be not be null", tobeSavedIdentity);
+    assertTrue("tobeSavedIdentity must be marked as deleted", tobeSavedIdentity.isDeleted());
+
+    identityStorage.hardDeleteIdentity(tobeSavedIdentity);
+    tobeSavedIdentity = identityStorage.findIdentity(OrganizationIdentityProvider.NAME, username);
+    assertNotNull("tobeSavedIdentity must be not be null", tobeSavedIdentity);
+    assertTrue("tobeSavedIdentity must be marked as deleted", tobeSavedIdentity.isDeleted());
 
     // Delete identity with loaded profile
     {
@@ -444,16 +450,19 @@ public class IdentityStorageTest extends AbstractCoreTest {
    */
   @MaxQueryNumber(670)
   public void testGetIdentitiesByProfileFilterAccessList() throws Exception {
-    populateData();
     ProfileFilter pf = new ProfileFilter();
-
     List<Identity> identities = identityStorage.getIdentitiesByProfileFilter("organization", pf, 0, 20, false);
-    assertEquals("Number of identities must be " + identities.size(), 5, identities.size());
+    int initialSize = identities.size();
+
+    populateData();
+
+    identities = identityStorage.getIdentitiesByProfileFilter("organization", pf, 0, 20, false);
+    assertEquals("Number of identities must be " + initialSize + 5, initialSize + 5, identities.size());
 
     pf.setPosition("developer");
     pf.setName("FirstName");
     identities = identityStorage.getIdentitiesByProfileFilter("organization", pf, 0, 20, false);
-    assertEquals("Number of identities must be " + identities.size(), 5, identities.size());
+    assertEquals("Number of identities must be 5", 5, identities.size());
 
     try {
       identities = identityStorage.getIdentitiesByProfileFilter("organization", pf, -1, 20, false);
