@@ -42,8 +42,9 @@ public class MentionsProcessorTest extends AbstractCoreTest {
     identityManager = PortalContainer.getInstance().getComponentInstanceOfType(IdentityManager.class);
     userPortalConfigService = PortalContainer.getInstance().getComponentInstanceOfType(UserPortalConfigService.class);
     assertNotNull("identityManager must not be null", identityManager);
-    rootIdentity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, "root");
-    johnIdentity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, "john");
+    rootIdentity = createOrUpdateIdentity("root");
+    johnIdentity = createOrUpdateIdentity("john");
+
     assertNotNull("rootIdentity.getId() must not be null", rootIdentity.getId());
     assertNotNull("johnIdentity.getId() must not be null", johnIdentity.getId());
   }

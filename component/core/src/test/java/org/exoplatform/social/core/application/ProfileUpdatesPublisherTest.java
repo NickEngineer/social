@@ -62,7 +62,7 @@ public class ProfileUpdatesPublisherTest extends AbstractCoreTest {
     assertNotNull("identityManager must not be null", identityStorage);
     publisher = (ProfileUpdatesPublisher) getContainer().getComponentInstanceOfType(ProfileUpdatesPublisher.class);
     assertNotNull("profileUpdatesPublisher must not be null", publisher);
-    rootIdentity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, userName, true);
+    rootIdentity = createOrUpdateIdentity(userName);
     assertNotNull("rootIdentity.getId() must not be null", rootIdentity.getId());
   }
 

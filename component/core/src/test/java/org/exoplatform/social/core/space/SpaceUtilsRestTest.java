@@ -51,6 +51,8 @@ public class SpaceUtilsRestTest extends AbstractCoreTest {
 
   @Override
   public void setUp() throws Exception {
+    super.setUp();
+
     identityStorage = (IdentityStorage) getContainer().getComponentInstanceOfType(IdentityStorage.class);
     authenticator = (Authenticator)getContainer().getComponentInstanceOfType(Authenticator.class);
 
