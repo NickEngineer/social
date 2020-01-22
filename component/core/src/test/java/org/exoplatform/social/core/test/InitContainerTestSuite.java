@@ -50,11 +50,9 @@ import org.exoplatform.social.core.storage.impl.ActivityStorageImplTestCase;
 //FIXME regression JCR to RDBMS migration
 //    IdentityStorageTest.class,
     SpaceServiceTest.class,
-//FIXME regression JCR to RDBMS migration
-//    SpaceStorageTest.class,
+    SpaceStorageTest.class,
     RelationshipManagerTest.class,
-//FIXME regression JCR to RDBMS migration
-//    RelationshipStorageTest.class,
+    RelationshipStorageTest.class,
     RelationshipPublisherTest.class,
     SpaceUtilsRestTest.class,
     SpaceUtilsTest.class,
