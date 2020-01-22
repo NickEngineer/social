@@ -49,7 +49,12 @@ public class SpaceUtilsWildCardMembershipTest extends AbstractCoreTest {
 
   public void setUp() throws Exception {
     super.setUp();
+    
+    identityStorage = getService(IdentityStorage.class);
+    spaceStorage = getService(SpaceStorage.class);
+
     assertNotNull("identityStorage must not be null", identityStorage);
+
     userHandler = SpaceUtils.getOrganizationService().getUserHandler();
     tearDownIdentityList = new ArrayList<Identity>();
     tearDownSpaceList = new ArrayList<Space>();
@@ -57,6 +62,8 @@ public class SpaceUtilsWildCardMembershipTest extends AbstractCoreTest {
   }
 
   public void tearDown() throws Exception {
+    restartTransaction();
+
     for (Identity identity : tearDownIdentityList) {
       identityStorage.deleteIdentity(identity);
     }

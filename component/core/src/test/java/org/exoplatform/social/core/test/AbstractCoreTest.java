@@ -79,6 +79,7 @@ public abstract class AbstractCoreTest extends BaseExoTestCase {
     identityManager = getContainer().getComponentInstanceOfType(IdentityManager.class);
 
     deleteAllSpaces();
+    restartTransaction();
   }
 
   @Override
