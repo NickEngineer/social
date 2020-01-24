@@ -66,14 +66,13 @@ public class SpaceTemplateServiceTest extends AbstractCoreTest {
   /**
    * Test {@link SpaceTemplateService#getSpaceTemplates(String)} ()}
    */
-//FIXME regression JCR to RDBMS migration
-//  public void testGetAllSpaceTemplates() throws Exception {
-//    // When
-//    List<SpaceTemplate> templates = spaceTemplateService.getSpaceTemplates("root");
-//    // Then
-//    assertEquals(1, templates.size());
-//    assertEquals("classic", templates.get(0).getName());
-//  }
+  public void testGetAllSpaceTemplates() throws Exception {
+    // When
+    List<SpaceTemplate> templates = spaceTemplateService.getSpaceTemplates("root");
+    // Then
+    assertEquals(1, templates.size());
+    assertEquals("classic", templates.get(0).getName());
+  }
 
   /**
    * Test {@link SpaceTemplateService#getSpaceTemplates(String)} ()}
@@ -218,28 +217,26 @@ public class SpaceTemplateServiceTest extends AbstractCoreTest {
    * Test
    * {@link SpaceTemplateService#setApp(Space, String, String, boolean, String)}
    */
-//FIXME regression JCR to RDBMS migration
-//  public void testSetApp() throws Exception {
-//    startSessionAs("root");
-//    Space space = createSpace("mySpace", "root");
-//    assertNull(space.getApp());
-//    // when
-//    spaceTemplateService.setApp(space, "appId", "appName", true, Space.ACTIVE_STATUS);
-//    // then
-//    assertEquals("appId:appName:true:active", space.getApp());
-//  }
+  public void testSetApp() throws Exception {
+    startSessionAs("root");
+    Space space = createSpace("mySpace", "root");
+    assertNull(space.getApp());
+    // when
+    spaceTemplateService.setApp(space, "appId", "appName", true, Space.ACTIVE_STATUS);
+    // then
+    assertEquals("appId:appName:true:active", space.getApp());
+  }
 
   /**
    * Test {@link SpaceTemplateService#getLabelledSpaceTemplates(String, String)}
    */
-//FIXME regression JCR to RDBMS migration
-//  public void testGetLabelledSpaceTemplates() throws Exception {
-//    // when
-//    List<SpaceTemplate> list = spaceTemplateService.getLabelledSpaceTemplates("root", "en");
-//    // then
-//    assertEquals(1, list.size());
-//    assertEquals("Any in Administrators ", list.get(0).getPermissionsLabels());
-//  }
+  public void testGetLabelledSpaceTemplates() throws Exception {
+    // when
+    List<SpaceTemplate> list = spaceTemplateService.getLabelledSpaceTemplates("root", "en");
+    // then
+    assertEquals(1, list.size());
+    assertEquals("Any in Administrators ", list.get(0).getPermissionsLabels());
+  }
 
   private Space createSpace(String spaceName, String creator) throws Exception {
     Space space = new Space();

@@ -81,20 +81,22 @@ public class ProfileUpdatesPublisherTest extends AbstractCoreTest {
 
   public void testProfileUpdated() throws Exception {
     Profile profile = rootIdentity.getProfile();
-    
+    String activityId = getActivityId(profile);
+    // Make sure to not have an activity attached to user
+    if (activityId != null) {
+      activityManager.deleteActivity(activityId);
+      restartTransaction();
+    }
+
     // update profile will be update on user profile properties also
     profile.setAttachedActivityType(Profile.AttachedActivityType.USER);
-    
-    //activityId must be null because it don't attach yet when we don't update profile
-    assertNull(getActivityId(profile));
-    
     //update the profile for the first time
     profile.setProperty(Profile.POSITION, "developer");
     profile.setListUpdateTypes(Arrays.asList(Profile.UpdateType.CONTACT));
     identityManager.updateProfile(profile);
     
     //from now, activity must not be null
-    String activityId = getActivityId(profile);
+    activityId = getActivityId(profile);
     assertNotNull(activityId);
     
     ExoSocialActivity activity = activityManager.getActivity(activityId);
@@ -197,7 +199,7 @@ public class ProfileUpdatesPublisherTest extends AbstractCoreTest {
     //Number of comments must be 1
     assertEquals(1, activityManager.getCommentsWithListAccess(newActivity).getSize());
     
-    activityId = getActivityId(profile);
+    activityId = activityId;
     activityManager.deleteActivity(activityId);
   }
   

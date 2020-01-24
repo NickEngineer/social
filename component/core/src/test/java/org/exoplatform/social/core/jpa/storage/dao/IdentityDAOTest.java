@@ -74,9 +74,12 @@ public class IdentityDAOTest extends BaseCoreTest {
     int initialSize = allIds.size();
 
     // Given
-    IdentityEntity identityUser1 = identityDAO.create(createIdentity(OrganizationIdentityProvider.NAME, "user1"));
-    IdentityEntity identityUser2 = identityDAO.create(createIdentity(OrganizationIdentityProvider.NAME, "user2"));
-    IdentityEntity identitySpace1 = identityDAO.create(createIdentity(SpaceIdentityProvider.NAME, "space1"));
+    IdentityEntity identityUser1 = identityDAO.create(createIdentity(OrganizationIdentityProvider.NAME, "user1" + Math.random()));
+    deleteIdentities.add(identityUser1);
+    IdentityEntity identityUser2 = identityDAO.create(createIdentity(OrganizationIdentityProvider.NAME, "user2" + Math.random()));
+    deleteIdentities.add(identityUser2);
+    IdentityEntity identitySpace1 = identityDAO.create(createIdentity(SpaceIdentityProvider.NAME, "space1" + Math.random()));
+    deleteIdentities.add(identitySpace1);
 
     // When
     allIds = identityDAO.getAllIds(0, 0);
@@ -87,10 +90,6 @@ public class IdentityDAOTest extends BaseCoreTest {
     assertTrue(allIds.contains(identityUser1.getId()));
     assertTrue(allIds.contains(identityUser2.getId()));
     assertTrue(allIds.contains(identitySpace1.getId()));
-
-    deleteIdentities.add(identityUser1);
-    deleteIdentities.add(identityUser2);
-    deleteIdentities.add(identitySpace1);
   }
 
   public void testFindAllIdentitiesWithConnections() {
@@ -239,9 +238,12 @@ public class IdentityDAOTest extends BaseCoreTest {
     int initialSpaceSize = allSpaceIds.size();
 
     // Given
-    IdentityEntity identityUser1 = identityDAO.create(createIdentity(OrganizationIdentityProvider.NAME, "user1"));
-    IdentityEntity identityUser2 = identityDAO.create(createIdentity(OrganizationIdentityProvider.NAME, "user2"));
-    IdentityEntity identitySpace1 = identityDAO.create(createIdentity(SpaceIdentityProvider.NAME, "space1"));
+    IdentityEntity identityUser1 = identityDAO.create(createIdentity(OrganizationIdentityProvider.NAME, "user1" + Math.random()));
+    deleteIdentities.add(identityUser1);
+    IdentityEntity identityUser2 = identityDAO.create(createIdentity(OrganizationIdentityProvider.NAME, "user2" + Math.random()));
+    deleteIdentities.add(identityUser2);
+    IdentityEntity identitySpace1 = identityDAO.create(createIdentity(SpaceIdentityProvider.NAME, "space1" + Math.random()));
+    deleteIdentities.add(identitySpace1);
 
     // When
     allOrganizationIds = identityDAO.getAllIdsByProvider(OrganizationIdentityProvider.NAME, 0, 0);
@@ -255,10 +257,6 @@ public class IdentityDAOTest extends BaseCoreTest {
     assertNotNull(allSpaceIds);
     assertEquals(1 + initialSpaceSize, allSpaceIds.size());
     assertTrue(allSpaceIds.contains(identitySpace1.getId()));
-
-    deleteIdentities.add(identityUser1);
-    deleteIdentities.add(identityUser2);
-    deleteIdentities.add(identitySpace1);
   }
 
   public void testSaveNewIdentity() {

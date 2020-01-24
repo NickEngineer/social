@@ -59,7 +59,7 @@ public class IdentityStorageTest extends AbstractCoreTest {
 
     assertNotNull(tobeSavedIdentity.getId());
 
-    final String updatedRemoteId = "identity-updated";
+    final String updatedRemoteId = "identity-updated" + Math.random();
 
     tobeSavedIdentity.setRemoteId(updatedRemoteId);
 
@@ -321,13 +321,15 @@ public class IdentityStorageTest extends AbstractCoreTest {
     final List<Identity> result = identityStorage.getIdentitiesByProfileFilter(providerId, filter, 0, 1, false);
     assertEquals(1, result.size());
 
+    final ProfileFilter profileFilter2 = new ProfileFilter();
+    int initialSize = identityStorage.getIdentitiesByProfileFilterCount(providerId, profileFilter2);
+
     // create a new identity
     Identity test2Identity = populateIdentity("test2", false);
 
     // check when new identity is not deleted
-    final ProfileFilter profileFilter2 = new ProfileFilter();
     List<Identity> foundIdentities = identityStorage.getIdentitiesByProfileFilter(providerId, profileFilter2, 0, 10, false);
-    assertEquals("foundIdentities.size() must be 1", 2, foundIdentities.size());
+    assertEquals("foundIdentities.size() must be 1", initialSize + 1, foundIdentities.size());
 
     // finds the second one
     profileFilter2.setName("g");
@@ -490,7 +492,7 @@ public class IdentityStorageTest extends AbstractCoreTest {
   @MaxQueryNumber(264)
   public void testUpdateIdentity() throws Exception {
     String providerId = OrganizationIdentityProvider.NAME;
-    String newProviderId = "space";
+    String newProviderId = "space" + Math.random();
     String userName = "root";
     Identity identity = populateIdentity(userName);
     assertNotNull("Identity must not be null", identity);

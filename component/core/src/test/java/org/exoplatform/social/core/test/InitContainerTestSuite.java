@@ -37,15 +37,11 @@ import org.exoplatform.social.core.storage.*;
 import org.exoplatform.social.core.storage.impl.ActivityStorageImplTestCase;
 
 @SuiteClasses({
-//FIXME regression JCR to RDBMS migration
-//    SpaceLastVisitedTest.class,
-//FIXME regression JCR to RDBMS migration
-//    WhatsHotTest.class,
+    SpaceLastVisitedTest.class,
+    WhatsHotTest.class,
     ActivityManagerTest.class,
-//FIXME regression JCR to RDBMS migration
-//    ActivityStorageTest.class,
-//FIXME regression JCR to RDBMS migration
-//    ActivityStorageImplTestCase.class,
+    ActivityStorageTest.class,
+    ActivityStorageImplTestCase.class,
     IdentityManagerTest.class,
     IdentityStorageTest.class,
     SpaceServiceTest.class,

@@ -73,10 +73,11 @@ public class IdentityStorageTest extends AbstractCoreTest {
   public void testSaveIdentity() {
     Identity tobeSavedIdentity = new Identity(OrganizationIdentityProvider.NAME, "identity1");
     identityStorage.saveIdentity(tobeSavedIdentity);
+    restartTransaction();
 
     assertNotNull(tobeSavedIdentity.getId());
 
-    final String updatedRemoteId = "identity-updated";
+    final String updatedRemoteId = "identity-updated-" + Math.random();
 
     tobeSavedIdentity.setRemoteId(updatedRemoteId);
 
@@ -612,7 +613,7 @@ public class IdentityStorageTest extends AbstractCoreTest {
   @MaxQueryNumber(264)
   public void testUpdateIdentity() throws Exception {
     String providerId = OrganizationIdentityProvider.NAME;
-    String newProviderId = "space";
+    String newProviderId = "space" + Math.random();
     String userName = "userIdentity1";
     Identity identity = populateIdentity(userName, true);
     assertNotNull("Identity must not be null", identity);

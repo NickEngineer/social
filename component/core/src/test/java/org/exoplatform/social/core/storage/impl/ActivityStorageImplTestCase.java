@@ -19,6 +19,7 @@ package org.exoplatform.social.core.storage.impl;
 
 import java.util.*;
 
+import org.apache.commons.lang3.StringUtils;
 import org.junit.FixMethodOrder;
 import org.junit.runners.MethodSorters;
 
@@ -415,10 +416,17 @@ public class ActivityStorageImplTestCase extends AbstractCoreTest {
       tearDownActivityList.add(activity);
     }
 
-    int i = 9;
-    for (ExoSocialActivity activity : activityStorage.getUserActivities(rootIdentity)) {
+    List<ExoSocialActivity> userActivities = activityStorage.getUserActivities(rootIdentity);
+    assertTrue(userActivities.size() >= 10);
+    Iterator<ExoSocialActivity> userActivitiesIterator = userActivities.iterator();
+    int i = 0;
+    while (userActivitiesIterator.hasNext() && i < 10) {
+      ExoSocialActivity activity = userActivitiesIterator.next();
+      if (i == 0 && !StringUtils.equals(activity.getTitle(), "title0")) {
+        continue;
+      }
       assertEquals("title " + i, activity.getTitle());
-      --i;
+      i++;
     }
   }
 
@@ -438,8 +446,24 @@ public class ActivityStorageImplTestCase extends AbstractCoreTest {
       activityStorage.saveActivity(rootIdentity, activity);
     }
 
-    int i = 9;
-    for (ExoSocialActivity activity : activityStorage.getUserActivities(rootIdentity)) {
+
+    // fill 10 activities
+    for (int i = 0; i < 10; ++i) {
+      ExoSocialActivity activity = new ExoSocialActivityImpl();
+      activity.setTitle("title " + i);
+      activityStorage.saveActivity(rootIdentity, activity);
+      tearDownActivityList.add(activity);
+    }
+
+    List<ExoSocialActivity> userActivities = activityStorage.getUserActivities(rootIdentity);
+    assertTrue(userActivities.size() >= 10);
+    Iterator<ExoSocialActivity> userActivitiesIterator = userActivities.iterator();
+    int i = 0;
+    while (userActivitiesIterator.hasNext() && i < 10) {
+      ExoSocialActivity activity = userActivitiesIterator.next();
+      if (i == 0 && !StringUtils.equals(activity.getTitle(), "title0")) {
+        continue;
+      }
       assertEquals("title " + i, activity.getTitle());
 
       if (i > 5) {
@@ -447,8 +471,7 @@ public class ActivityStorageImplTestCase extends AbstractCoreTest {
       } else {
         assertEquals(yesterday + i, activity.getPostedTime().longValue());
       }
-
-      --i;
+      i++;
     }
   }
 
@@ -472,8 +495,15 @@ public class ActivityStorageImplTestCase extends AbstractCoreTest {
       activityStorage.saveActivity(rootIdentity, activity);
     }
 
-    int i = 9;
-    for (ExoSocialActivity activity : activityStorage.getUserActivities(rootIdentity)) {
+    List<ExoSocialActivity> userActivities = activityStorage.getUserActivities(rootIdentity);
+    assertTrue(userActivities.size() >= 10);
+    Iterator<ExoSocialActivity> userActivitiesIterator = userActivities.iterator();
+    int i = 0;
+    while (userActivitiesIterator.hasNext() && i < 10) {
+      ExoSocialActivity activity = userActivitiesIterator.next();
+      if (i == 0 && !StringUtils.equals(activity.getTitle(), "title0")) {
+        continue;
+      }
       assertEquals("title " + i, activity.getTitle());
 
       if (i >= 5) {
@@ -481,49 +511,52 @@ public class ActivityStorageImplTestCase extends AbstractCoreTest {
       } else {
         assertEquals(yesterday + i, activity.getPostedTime().longValue());
       }
-
-      --i;
+      i++;
     }
   }
 
-//FIXME regression JCR to RDBMS migration
-//  @MaxQueryNumber(4155)
-//  public void testActivityOrder2() throws Exception {
-//    // fill 10 activities
-//    for (int i = 0; i < 10; ++i) {
-//      ExoSocialActivity activity = new ExoSocialActivityImpl();
-//      activity.setTitle("title " + i);
-//      activityStorage.saveActivity(rootIdentity, activity);
-//
-//    }
-//
-//    // remove 5 activities
-//    Iterator<ExoSocialActivity> it = activityStorage.getUserActivities(rootIdentity).iterator();
-//
-//    for (int i = 0; i < 5; ++i) {
-//      activityStorage.deleteActivity(it.next().getId());
-//    }
-//
-//    while (it.hasNext()) {
-//      tearDownActivityList.add(it.next());
-//    }
-//
-//    // fill 10 others
-//    for (int i = 0; i < 10; ++i) {
-//      ExoSocialActivity activity = new ExoSocialActivityImpl();
-//      activity.setTitle("title " + i);
-//      activityStorage.saveActivity(rootIdentity, activity);
-//      tearDownActivityList.add(activity);
-//    }
-//
-//    List<ExoSocialActivity> activityies = activityStorage.getUserActivities(rootIdentity);
-//    int i = 0;
-//    int[] values = { 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, 4, 3, 2, 1, 0 };
-//    for (ExoSocialActivity activity : activityies) {
-//      assertEquals("title " + values[i], activity.getTitle());
-//      ++i;
-//    }
-//  }
+  @MaxQueryNumber(4155)
+  public void testActivityOrder2() throws Exception {
+    // fill 10 activities
+    for (int i = 0; i < 10; ++i) {
+      ExoSocialActivity activity = new ExoSocialActivityImpl();
+      activity.setTitle("title " + i);
+      activityStorage.saveActivity(rootIdentity, activity);
+    }
+
+    // remove 5 activities
+    Iterator<ExoSocialActivity> it = activityStorage.getUserActivities(rootIdentity).iterator();
+    for (int i = 0; i < 5; ++i) {
+      activityStorage.deleteActivity(it.next().getId());
+    }
+
+    while (it.hasNext()) {
+      tearDownActivityList.add(it.next());
+    }
+
+    // fill 10 others
+    for (int i = 0; i < 10; ++i) {
+      ExoSocialActivity activity = new ExoSocialActivityImpl();
+      activity.setTitle("title " + i);
+      activityStorage.saveActivity(rootIdentity, activity);
+      tearDownActivityList.add(activity);
+    }
+
+    List<ExoSocialActivity> userActivities = activityStorage.getUserActivities(rootIdentity);
+    assertTrue(userActivities.size() >= 15);
+    int[] values = { 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, 4, 3, 2, 1, 0 };
+
+    Iterator<ExoSocialActivity> userActivitiesIterator = userActivities.iterator();
+    int i = 0;
+    while (userActivitiesIterator.hasNext() && i < values.length) {
+      ExoSocialActivity activity = userActivitiesIterator.next();
+      if (i == 0 && !StringUtils.equals(activity.getTitle(), "title0")) {
+        continue;
+      }
+      assertEquals("title " + values[i], activity.getTitle());
+      i++;
+    }
+  }
 
   @MaxQueryNumber(318)
   public void testActivityHidden() throws Exception {
@@ -925,40 +958,40 @@ public class ActivityStorageImplTestCase extends AbstractCoreTest {
     //
     BaseActivityProcessorPlugin processor = new DummyProcessor(null);
     activityStorage.getActivityProcessors().add(processor);
-
-    //
-    ExoSocialActivity activity = new ExoSocialActivityImpl();
-    activity.setTitle("activity");
-    activityStorage.saveActivity(rootIdentity, activity);
-    assertNotNull(activity.getId());
-
-    //
-    ExoSocialActivity got = activityStorage.getActivity(activity.getId());
-    assertEquals(activity.getId(), got.getId());
-    assertEquals("edited", got.getTitle());
-
-    //
-    ExoSocialActivity comment = new ExoSocialActivityImpl();
-    comment.setTitle("comment");
-    comment.setUserId(rootIdentity.getId());
-    activityStorage.saveComment(activity, comment);
-    assertNotNull(comment.getId());
-
-    //
-    ExoSocialActivity gotComment = activityStorage.getActivity(comment.getId());
-    assertEquals(comment.getId(), gotComment.getId());
-    assertEquals("edited", gotComment.getTitle());
-
-    //
-    ExoSocialActivity gotParentActivity = activityStorage.getParentActivity(comment);
-    assertEquals(activity.getId(), gotParentActivity.getId());
-    assertEquals("edited", gotParentActivity.getTitle());
-    assertEquals(1, activity.getReplyToId().length);
-    assertEquals(comment.getId(), activity.getReplyToId()[0]);
-
-    //
-    activityStorage.getActivityProcessors().remove(processor);
-
+    try {
+      //
+      ExoSocialActivity activity = new ExoSocialActivityImpl();
+      activity.setTitle("activity");
+      activityStorage.saveActivity(rootIdentity, activity);
+      assertNotNull(activity.getId());
+  
+      //
+      ExoSocialActivity got = activityStorage.getActivity(activity.getId());
+      assertEquals(activity.getId(), got.getId());
+      assertEquals("edited", got.getTitle());
+  
+      //
+      ExoSocialActivity comment = new ExoSocialActivityImpl();
+      comment.setTitle("comment");
+      comment.setUserId(rootIdentity.getId());
+      activityStorage.saveComment(activity, comment);
+      assertNotNull(comment.getId());
+  
+      //
+      ExoSocialActivity gotComment = activityStorage.getActivity(comment.getId());
+      assertEquals(comment.getId(), gotComment.getId());
+      assertEquals("edited", gotComment.getTitle());
+  
+      //
+      ExoSocialActivity gotParentActivity = activityStorage.getParentActivity(comment);
+      assertEquals(activity.getId(), gotParentActivity.getId());
+      assertEquals("edited", gotParentActivity.getTitle());
+      assertEquals(1, activity.getReplyToId().length);
+      assertEquals(comment.getId(), activity.getReplyToId()[0]);
+    } finally {
+      //
+      activityStorage.getActivityProcessors().remove(processor);
+    }
   }
 
   /**

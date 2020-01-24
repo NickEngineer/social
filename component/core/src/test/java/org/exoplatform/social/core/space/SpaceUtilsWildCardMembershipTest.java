@@ -91,7 +91,7 @@ public class SpaceUtilsWildCardMembershipTest extends AbstractCoreTest {
     populateIdentity("user02");
     populateIdentity("user03");
 
-    Space space = populateSpace("space01", "user03");
+    Space space = populateSpace("space01" + Math.random(), "user03");
 
     assertFalse(SpaceUtils.isUserHasMembershipTypesInGroup("user01",
                                                            space.getGroupId(),
@@ -122,7 +122,7 @@ public class SpaceUtilsWildCardMembershipTest extends AbstractCoreTest {
     populateIdentity("user02");
     populateIdentity("user03");
 
-    Space space = populateSpace("space02", "user03");
+    Space space = populateSpace("space02" + Math.random(), "user03");
 
     assertEquals(0,
                  SpaceUtils.findMembershipUsersByGroupAndTypes(space.getGroupId(), MembershipTypeHandler.ANY_MEMBERSHIP_TYPE)

@@ -269,6 +269,10 @@ public class RDBMSActivityStorageImpl implements ActivityStorage {
     }
   }
 
+  private boolean isComment(String activityId) {
+    return activityId != null && activityId.startsWith(COMMENT_PREFIX);
+  }
+
   private boolean isSubComment(ActivityEntity comment) {
     return comment.getParent() != null && comment.getParent().isComment();
   }
@@ -761,6 +765,12 @@ public class RDBMSActivityStorageImpl implements ActivityStorage {
 
   @Override
   public void deleteActivity(String activityId) {
+    if (activityId == null) {
+      throw new IllegalArgumentException("activityId is mandatory");
+    }
+    if (isComment(activityId)) {
+      throw new IllegalArgumentException("ActivityId must not be a comment id, use deleteComment method instead.");
+    }
     ActivityEntity a = activityDAO.find(Long.valueOf(activityId));
     if (a != null) {
       activityDAO.delete(a);

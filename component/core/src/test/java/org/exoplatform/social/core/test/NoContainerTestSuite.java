@@ -33,13 +33,22 @@ import org.exoplatform.social.core.storage.StorageUtilsTest;
 @RunWith(Suite.class)
 @SuiteClasses({
     GlobalIdTest.class,
+    GlobalIdTest.class,
+    IdentityTest.class,
     IdentityTest.class,
     ImageUtilsTest.class,
+    ImageUtilsTest.class,
+    ActivityResourceBundlePluginTest.class,
     ActivityResourceBundlePluginTest.class,
     I18NActivityProcessorTest.class,
+    I18NActivityProcessorTest.class,
+    RelationshipTest.class,
     RelationshipTest.class,
     StorageUtilsTest.class,
+    StorageUtilsTest.class,
     ActivityIteratorTest.class,
+    ActivityIteratorTest.class,
+    IdentityResultTest.class,
     IdentityResultTest.class,
 })
 public class NoContainerTestSuite {

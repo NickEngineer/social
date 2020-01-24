@@ -227,6 +227,14 @@ public abstract class AbstractCoreTest extends BaseExoTestCase {
     return createIdentity(username);
   }
 
+  protected org.exoplatform.social.core.identity.model.Identity createOrUpdateIdentity(String remoteId) {
+    org.exoplatform.social.core.identity.model.Identity identity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, remoteId);
+    identity.setDeleted(false);
+    identity.setEnable(true);
+    identityManager.updateIdentity(identity);
+    return identity;
+  }
+
   protected Identity createIdentity(String username) {
     Identity identity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, username, true);
     Profile profile = new Profile(identity);

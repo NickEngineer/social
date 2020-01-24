@@ -62,10 +62,10 @@ public class RDBMSActivityStorageImplTest extends AbstractCoreTest {
     assertNotNull(identityStorage);
     assertNotNull(activityStorage);
 
-    rootIdentity = createIdentity("root");
-    johnIdentity = createIdentity("john");
-    maryIdentity = createIdentity("mary");
-    demoIdentity = createIdentity("demo");
+    rootIdentity = createOrUpdateIdentity("root");
+    johnIdentity = createOrUpdateIdentity("john");
+    maryIdentity = createOrUpdateIdentity("mary");
+    demoIdentity = createOrUpdateIdentity("demo");
 
     tearDownActivityList = new ArrayList<ExoSocialActivity>();
   }
@@ -166,7 +166,7 @@ public class RDBMSActivityStorageImplTest extends AbstractCoreTest {
     assertEquals(0, activity.getMentionedIds().length);
 
     //update
-    String processedTitle = "test <a href=\"/portal/classic/profile/root\" rel=\"nofollow\" target=\"_blank\">Root Root</a> " +
+    String processedTitle = "test <a href=\"/portal/classic/profile/root\" rel=\"nofollow\" target=\"_blank\">" + rootIdentity.getProfile().getFullName() + "</a> " +
         "<a href=\"/portal/classic/profile/john\" rel=\"nofollow\" target=\"_blank\">" + johnIdentity.getProfile().getFullName()
         + "</a>";
     activity.setTitle("test @root @john");
@@ -441,6 +441,8 @@ public class RDBMSActivityStorageImplTest extends AbstractCoreTest {
   }
   @MaxQueryNumber(1135)
   public void testGetOlderOnActivitiesOfConnections() throws Exception {
+    int initialSize = activityStorage.getOlderFeedActivities(maryIdentity, System.currentTimeMillis(), 100).size();
+
     List<Relationship> relationships = new ArrayList<Relationship> ();
     createActivities(3, maryIdentity);
     createActivities(1, demoIdentity);
@@ -477,6 +479,8 @@ public class RDBMSActivityStorageImplTest extends AbstractCoreTest {
     
     baseActivity = activityStorage.getActivitiesOfIdentity(johnIdentity, 0, 10).get(0);
     LOG.info("john::sinceTime = " + baseActivity.getPostedTime());
+    restartTransaction();
+
     assertEquals(2, activityStorage.getOlderOnActivitiesOfConnections(maryIdentity, baseActivity, 10).size());
     assertEquals(2, activityStorage.getNumberOfOlderOnActivitiesOfConnections(maryIdentity, baseActivity));
     
@@ -487,12 +491,11 @@ public class RDBMSActivityStorageImplTest extends AbstractCoreTest {
     Relationship maryRootRelationship = relationshipManager.inviteToConnect(maryIdentity, rootIdentity);
     relationshipManager.confirm(maryIdentity, rootIdentity);
     relationships.add(maryRootRelationship);
-  
-    
+
     baseActivity = activityStorage.getActivitiesOfIdentity(rootIdentity, 0, 10).get(0);
-    LOG.info("root::sinceTime = " + baseActivity.getPostedTime());    
-    assertEquals(4, activityStorage.getOlderOnActivitiesOfConnections(maryIdentity, baseActivity, 10).size());
-    assertEquals(4, activityStorage.getNumberOfOlderOnActivitiesOfConnections(maryIdentity, baseActivity));
+    LOG.info("root::sinceTime = " + baseActivity.getPostedTime());
+    assertEquals(initialSize + 4, activityStorage.getOlderOnActivitiesOfConnections(maryIdentity, baseActivity, 10).size());
+    assertEquals(initialSize + 4, activityStorage.getNumberOfOlderOnActivitiesOfConnections(maryIdentity, baseActivity));
   }
   @MaxQueryNumber(835)
   public void testGetNewerOnUserSpacesActivities() throws Exception {

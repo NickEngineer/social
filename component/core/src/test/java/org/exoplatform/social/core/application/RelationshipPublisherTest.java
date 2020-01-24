@@ -204,19 +204,18 @@ public class RelationshipPublisherTest extends  AbstractCoreTest {
   
   public void testConfirmedAndUpdateProfile() throws Exception {
     Profile profile = rootIdentity.getProfile();
+    deleteActivity(profile);
 
     profile.setAttachedActivityType(Profile.AttachedActivityType.USER);
-    assertNull(getActivityId(profile));
-
     //update the profile for the first time
     profile.setProperty(Profile.POSITION, "developer");
     profile.setListUpdateTypes(Arrays.asList(Profile.UpdateType.CONTACT));
     identityManager.updateProfile(profile);
 
-    //from now, activity must not be null
-    assertNotNull(getActivityId(profile));
-
     String activityId = getActivityId(profile);
+    //from now, activity must not be null
+    assertNotNull(activityId);
+
     ExoSocialActivity activity = activityManager.getActivity(activityId);
 
     List<ExoSocialActivity> comments = activityManager.getCommentsWithListAccess(activity).loadAsList(0, 20);
@@ -245,6 +244,15 @@ public class RelationshipPublisherTest extends  AbstractCoreTest {
     relationshipManager.delete(rootToDemoRelationship);
     activityManager.deleteActivity(rootActivity);
     activityManager.deleteActivity(demoActivity);
+  }
+
+  private String deleteActivity(Profile profile) {
+    String activityId = getActivityId(profile);
+    if (activityId != null) {
+      activityManager.deleteActivity(activityId);
+      assertNull(getActivityId(profile));
+    }
+    return activityId;
   }
 
   private String getActivityId(Profile profile) {

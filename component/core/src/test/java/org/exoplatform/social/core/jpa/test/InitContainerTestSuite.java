@@ -37,7 +37,7 @@ import org.exoplatform.social.core.jpa.storage.dao.*;
     IdentityStorageTest.class,
     RDBMSSpaceStorageTest.class,
     SpaceMemberDAOTest.class,
-    SpaceDAOTest.class
+    SpaceDAOTest.class,
 })
 @ConfigTestCase(AbstractCoreTest.class)
 public class InitContainerTestSuite extends BaseExoContainerTestSuite {
