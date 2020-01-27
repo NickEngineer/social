@@ -22,22 +22,51 @@ import org.junit.runners.Suite.SuiteClasses;
 
 import org.exoplatform.commons.testing.BaseExoContainerTestSuite;
 import org.exoplatform.commons.testing.ConfigTestCase;
+import org.exoplatform.social.core.application.*;
+import org.exoplatform.social.core.feature.SpaceLastVisitedTest;
+import org.exoplatform.social.core.feature.WhatsHotTest;
 import org.exoplatform.social.core.jpa.storage.*;
 import org.exoplatform.social.core.jpa.storage.dao.*;
+import org.exoplatform.social.core.listeners.SocialUserProfileEventListenerImplTest;
+import org.exoplatform.social.core.manager.IdentityManagerTest;
+import org.exoplatform.social.core.processor.*;
+import org.exoplatform.social.core.search.SortingTest;
+import org.exoplatform.social.core.service.LinkProviderTest;
+import org.exoplatform.social.core.space.*;
+import org.exoplatform.social.core.space.spi.SpaceServiceTest;
+import org.exoplatform.social.core.space.spi.SpaceTemplateServiceTest;
 
 @SuiteClasses({
+    WhatsHotTest.class,
+    SortingTest.class,
+    SpaceUtilsWildCardMembershipTest.class,
     ActivityDAOTest.class,
-    IdentityDAOTest.class,
-    StreamItemDAOTest.class,
     RDBMSActivityStorageImplTest.class,
     ActivityManagerRDBMSTest.class,
-    SpaceActivityRDBMSPublisherTest.class,
-    RelationshipStorageTest.class,
-    RDBMSRelationshipManagerTest.class,
+    IdentityDAOTest.class,
     IdentityStorageTest.class,
-    RDBMSSpaceStorageTest.class,
-    SpaceMemberDAOTest.class,
+    IdentityManagerTest.class,
+    SpaceActivityRDBMSPublisherTest.class,
     SpaceDAOTest.class,
+    SpaceMemberDAOTest.class,
+    SpaceStorageTest.class,
+    RDBMSSpaceStorageTest.class,
+    SpaceServiceTest.class,
+    SpaceTemplateServiceTest.class,
+    SpaceUtilsRestTest.class,
+    SpaceUtilsTest.class,
+    SpaceActivityPublisherTest.class,
+    SpaceLastVisitedTest.class,
+    SpaceLifeCycleTest.class,
+    RDBMSRelationshipManagerTest.class,
+    RelationshipPublisherTest.class,
+    StreamItemDAOTest.class,
+    SocialUserProfileEventListenerImplTest.class,
+    OSHtmlSanitizerProcessorTest.class,
+    TemplateParamsProcessorTest.class,
+    ProfileUpdatesPublisherTest.class,
+    MentionsProcessorTest.class,
+    LinkProviderTest.class,
 })
 @ConfigTestCase(AbstractCoreTest.class)
 public class InitContainerTestSuite extends BaseExoContainerTestSuite {

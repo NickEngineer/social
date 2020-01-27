@@ -16,6 +16,8 @@
  */
 package org.exoplatform.social.core.jpa.storage;
 
+import java.io.ByteArrayInputStream;
+import java.net.URL;
 import java.util.*;
 
 import org.apache.commons.lang3.StringUtils;
@@ -31,15 +33,19 @@ import org.exoplatform.services.log.Log;
 import org.exoplatform.services.organization.OrganizationService;
 import org.exoplatform.services.organization.User;
 import org.exoplatform.social.common.RealtimeListAccess;
-import org.exoplatform.social.core.activity.model.ExoSocialActivity;
-import org.exoplatform.social.core.activity.model.ExoSocialActivityImpl;
+import org.exoplatform.social.core.activity.model.*;
+import org.exoplatform.social.core.application.RelationshipPublisher;
 import org.exoplatform.social.core.application.SpaceActivityPublisher;
 import org.exoplatform.social.core.identity.model.Identity;
+import org.exoplatform.social.core.identity.model.Profile;
 import org.exoplatform.social.core.identity.provider.OrganizationIdentityProvider;
 import org.exoplatform.social.core.identity.provider.SpaceIdentityProvider;
 import org.exoplatform.social.core.jpa.test.AbstractCoreTest;
 import org.exoplatform.social.core.manager.*;
+import org.exoplatform.social.core.mock.MockUploadService;
 import org.exoplatform.social.core.profile.ProfileFilter;
+import org.exoplatform.social.core.relationship.RelationshipEvent;
+import org.exoplatform.social.core.relationship.RelationshipEvent.Type;
 import org.exoplatform.social.core.relationship.model.Relationship;
 import org.exoplatform.social.core.space.SpaceUtils;
 import org.exoplatform.social.core.space.impl.DefaultSpaceApplicationHandler;
@@ -49,7 +55,6 @@ import org.exoplatform.social.core.storage.ActivityStorageException;
 import org.exoplatform.social.core.storage.api.ActivityStorage;
 import org.exoplatform.social.core.storage.api.IdentityStorage;
 import org.exoplatform.social.core.storage.cache.CachedIdentityStorage;
-import org.exoplatform.social.core.storage.impl.StorageUtils;
 import org.exoplatform.upload.UploadService;
 
 /**
@@ -58,30 +63,41 @@ import org.exoplatform.upload.UploadService;
  * @author hoat_le
  */
 public class ActivityManagerRDBMSTest extends AbstractCoreTest {
-  private final Log LOG = ExoLogger.getLogger(ActivityManagerRDBMSTest.class);
+  private final Log               LOG = ExoLogger.getLogger(ActivityManagerRDBMSTest.class);
 
-  private Identity  rootIdentity;
+  private List<ExoSocialActivity> tearDownActivityList;
 
-  private Identity  johnIdentity;
+  private List<Space>             tearDownSpaceList;
 
-  private Identity  maryIdentity;
+  private MockUploadService       uploadService;
 
-  private Identity  demoIdentity;
+  private Identity                rootIdentity;
 
-  private Identity  ghostIdentity;
+  private Identity                johnIdentity;
 
-  private Identity  raulIdentity;
+  private Identity                maryIdentity;
 
-  private Identity  jameIdentity;
+  private Identity                demoIdentity;
 
-  private Identity  paulIdentity;
+  private Identity                ghostIdentity;
+
+  private Identity                raulIdentity;
+
+  private Identity                jameIdentity;
+
+  private Identity                paulIdentity;
 
   @Override
   public void setUp() throws Exception {
     super.setUp();
 
+    uploadService = (MockUploadService) getContainer().getComponentInstanceOfType(UploadService.class);
+
     CachedIdentityStorage identityStorage = (CachedIdentityStorage) getService(IdentityStorage.class);
     ((RDBMSIdentityStorageImpl) identityStorage.getStorage()).setProfileSearchConnector(mockProfileSearch);
+
+    tearDownActivityList = new ArrayList<ExoSocialActivity>();
+    tearDownSpaceList = new ArrayList<Space>();
 
     rootIdentity = createIdentity("root");
     johnIdentity = createIdentity("john");
@@ -91,6 +107,38 @@ public class ActivityManagerRDBMSTest extends AbstractCoreTest {
     raulIdentity = createIdentity("raul");
     jameIdentity = createIdentity("jame");
     paulIdentity = createIdentity("paul");
+  }
+
+  @Override
+  public void tearDown() throws Exception {
+    restartTransaction();
+
+    for (ExoSocialActivity activity : tearDownActivityList) {
+      try {
+        activityManager.deleteActivity(activity.getId());
+      } catch (Exception e) {
+        LOG.warn("can not delete activity with id: " + activity.getId());
+      }
+    }
+
+    identityManager.deleteIdentity(rootIdentity);
+    identityManager.deleteIdentity(johnIdentity);
+    identityManager.deleteIdentity(maryIdentity);
+    identityManager.deleteIdentity(demoIdentity);
+    identityManager.deleteIdentity(ghostIdentity);
+    identityManager.deleteIdentity(jameIdentity);
+    identityManager.deleteIdentity(raulIdentity);
+    identityManager.deleteIdentity(paulIdentity);
+
+    for (Space space : tearDownSpaceList) {
+      Identity spaceIdentity = identityManager.getOrCreateIdentity(SpaceIdentityProvider.NAME, space.getPrettyName());
+      if (spaceIdentity != null) {
+        identityManager.deleteIdentity(spaceIdentity);
+      }
+      spaceService.deleteSpace(space);
+    }
+
+    super.tearDown();
   }
 
   public void testActivityEditable() {
@@ -237,6 +285,98 @@ public class ActivityManagerRDBMSTest extends AbstractCoreTest {
     assertNotNull("activity must not be null", activity);
     assertEquals("activity.getTitle() must return: " + activityTitle, activityTitle, activity.getTitle());
     assertEquals("activity.getUserId() must return: " + userId, userId, activity.getUserId());
+  }
+
+  public void testShouldNotEditActivityWhenHasJoinedComment() throws Exception {
+    // Given
+    org.exoplatform.services.security.Identity identity = new org.exoplatform.services.security.Identity("root");
+    String activityTitle = "activity title";
+    String userId = rootIdentity.getId();
+    ExoSocialActivity activity = createActivity();
+    activity.setTitle(activityTitle);
+    activity.setUserId(userId);
+    activityManager.saveActivityNoReturn(activity);
+    activity = activityManager.getActivity(activity.getId());
+    ExoSocialActivity comment = createComment(activity, "exosocial:spaces", "has_joined");
+
+    // When
+    boolean isEditable = activityManager.isActivityEditable(comment, identity);
+
+    // Then
+    assertFalse(isEditable);
+
+    // Finally
+    activityManager.deleteComment(activity, comment);
+    activityManager.deleteActivity(activity);
+  }
+
+  public void testShouldNotEditActivityWhenSpaceDescriptionEditedComment() throws Exception {
+    // Given
+    org.exoplatform.services.security.Identity identity = new org.exoplatform.services.security.Identity("root");
+    String activityTitle = "activity title";
+    String userId = rootIdentity.getId();
+    ExoSocialActivity activity = createActivity();
+    activity.setTitle(activityTitle);
+    activity.setUserId(userId);
+    activityManager.saveActivityNoReturn(activity);
+    activity = activityManager.getActivity(activity.getId());
+    ExoSocialActivity comment = createComment(activity, "exosocial:spaces", "space_description_edited");
+
+    // When
+    boolean isEditable = activityManager.isActivityEditable(comment, identity);
+
+    // Then
+    assertFalse(isEditable);
+
+    // Finally
+    activityManager.deleteComment(activity, comment);
+    activityManager.deleteActivity(activity);
+  }
+
+  public void testShouldEditActivityWhenPostComment() throws Exception {
+    // Given
+    org.exoplatform.services.security.Identity identity = new org.exoplatform.services.security.Identity("root");
+    String activityTitle = "activity title";
+    String userId = rootIdentity.getId();
+    ExoSocialActivity activity = createActivity();
+    activity.setTitle(activityTitle);
+    activity.setUserId(userId);
+    activityManager.saveActivityNoReturn(activity);
+    activity = activityManager.getActivity(activity.getId());
+    ExoSocialActivity comment = createComment(activity, "exosocial:spaces", "text comment");
+
+    // When
+    boolean isEditable = activityManager.isActivityEditable(comment, identity);
+
+    // Then
+    assertTrue(isEditable);
+
+    // Finally
+    activityManager.deleteComment(activity, comment);
+    activityManager.deleteActivity(activity);
+  }
+
+  public void testShouldNotEditActivityWhenWikiSpacePostedComment() throws Exception {
+    // Given
+    org.exoplatform.services.security.Identity identity = new org.exoplatform.services.security.Identity("root");
+    String activityTitle = "activity title";
+    String userId = rootIdentity.getId();
+    ExoSocialActivity activity = createActivity();
+    activity.setTitle(activityTitle);
+    activity.setUserId(userId);
+    activityManager.saveActivityNoReturn(activity);
+    activity = activityManager.getActivity(activity.getId());
+    ExoSocialActivity comment = createComment(activity, "ks-wiki:spaces", "text comment");
+
+    // When
+    boolean isEditable = activityManager.isActivityEditable(comment, identity);
+
+    // Then
+    assertFalse(isEditable);
+
+    // Finally
+    activityManager.deleteComment(activity, comment);
+    activityManager.deleteActivity(activity);
   }
 
   /**
@@ -1192,6 +1332,65 @@ public class ActivityManagerRDBMSTest extends AbstractCoreTest {
     }
   }
 
+  public void testRelationshipActivities() throws Exception {
+    RelationshipPublisher relationshipPublisher =
+                                                (RelationshipPublisher) getContainer().getComponentInstanceOfType(RelationshipPublisher.class);
+    Relationship rootDemoRelationship = relationshipManager.inviteToConnect(rootIdentity, demoIdentity);
+    relationshipManager.confirm(demoIdentity, rootIdentity);
+    relationshipPublisher.confirmed(new RelationshipEvent(Type.CONFIRM, relationshipManager, rootDemoRelationship));
+    Relationship demoJohnRelationship = relationshipManager.inviteToConnect(demoIdentity, johnIdentity);
+    relationshipManager.confirm(johnIdentity, demoIdentity);
+    relationshipPublisher.confirmed(new RelationshipEvent(Type.CONFIRM, relationshipManager, demoJohnRelationship));
+
+    IdentityStorage identityStorage = (IdentityStorage) getContainer().getComponentInstanceOfType(IdentityStorage.class);
+    String johnActivityId = identityStorage.getProfileActivityId(johnIdentity.getProfile(),
+                                                                 Profile.AttachedActivityType.RELATIONSHIP);
+    ExoSocialActivity johnActivity = activityManager.getActivity(johnActivityId);
+    assertNotNull(johnActivity);
+    tearDownActivityList.add(johnActivity);
+    String rootActivityId = identityStorage.getProfileActivityId(rootIdentity.getProfile(),
+                                                                 Profile.AttachedActivityType.RELATIONSHIP);
+    ExoSocialActivity rootActivity = activityManager.getActivity(rootActivityId);
+    tearDownActivityList.add(rootActivity);
+    assertNotNull(rootActivity);
+    String demoActivityId = identityStorage.getProfileActivityId(demoIdentity.getProfile(),
+                                                                 Profile.AttachedActivityType.RELATIONSHIP);
+    ExoSocialActivity maryActivity = activityManager.getActivity(demoActivityId);
+    tearDownActivityList.add(maryActivity);
+    assertNotNull(maryActivity);
+
+    List<ExoSocialActivity> activities = activityManager.getActivityFeedWithListAccess(demoIdentity).loadAsList(0, 10);
+    assertEquals(3, activities.size());
+    activities = activityManager.getActivityFeedWithListAccess(rootIdentity).loadAsList(0, 10);
+    assertEquals(2, activities.size());
+
+    // on john's stream, there are 2 activities, one of john and one of demo
+    activities = activityManager.getActivityFeedWithListAccess(johnIdentity).loadAsList(0, 10);
+    assertEquals(2, activities.size());
+    assertEquals(johnActivityId, activities.get(0).getId());
+    assertEquals(demoActivityId, activities.get(1).getId());
+
+    // root posts on demo stream
+    ExoSocialActivity activity = new ExoSocialActivityImpl();
+    activity.setTitle("Root posts on demo");
+    activity.setUserId(rootIdentity.getId());
+    activityManager.saveActivityNoReturn(demoIdentity, activity);
+    tearDownActivityList.add(activity);
+
+    // john must not see this activity
+    activities = activityManager.getActivityFeedWithListAccess(johnIdentity).loadAsList(0, 10);
+    assertEquals(2, activities.size());
+
+    // delete 2 activities on john's stream
+    activityManager.deleteActivity(demoActivityId);
+    activityManager.deleteActivity(johnActivityId);
+    activities = activityManager.getActivityFeedWithListAccess(johnIdentity).loadAsList(0, 10);
+    assertEquals(0, activities.size());
+
+    relationshipManager.delete(rootDemoRelationship);
+    relationshipManager.delete(demoJohnRelationship);
+  }
+
   /**
    * Unit Test for: {@link ActivityManager#getActivities(Identity)}
    * {@link ActivityManager#getActivities(Identity, long, long)}
@@ -1338,6 +1537,39 @@ public class ActivityManagerRDBMSTest extends AbstractCoreTest {
     assertEquals(retrievedCount, activities.size());
   }
 
+  /**
+   * Test {@link ActivityManager#getActivityFeed(Identity)}
+   * 
+   * @throws Exception
+   * @since 1.2.0-Beta3
+   */
+  public void testGetActivityFeed() throws Exception {
+    this.populateActivityMass(demoIdentity, 3);
+    this.populateActivityMass(maryIdentity, 3);
+    this.populateActivityMass(johnIdentity, 2);
+
+    List<ExoSocialActivity> demoActivityFeed = activityManager.getActivityFeed(demoIdentity);
+    assertEquals(3, demoActivityFeed.size());
+
+    Space space = this.getSpaceInstance(spaceService, 0);
+    Identity spaceIdentity = identityManager.getOrCreateIdentity(SpaceIdentityProvider.NAME, space.getPrettyName(), false);
+    populateActivityMass(spaceIdentity, 5);
+
+    demoActivityFeed = activityManager.getActivityFeed(demoIdentity);
+    assertEquals("demoActivityFeed.size() must be 8", 8, demoActivityFeed.size());
+
+    Relationship demoMaryConnection = relationshipManager.invite(demoIdentity, maryIdentity);
+    assertEquals(8, activityManager.getActivityFeedWithListAccess(demoIdentity).getSize());
+
+    relationshipManager.confirm(demoIdentity, maryIdentity);
+    List<ExoSocialActivity> demoActivityFeed2 = activityManager.getActivityFeed(demoIdentity);
+    assertEquals("demoActivityFeed2.size() must return 11", 11, demoActivityFeed2.size());
+    List<ExoSocialActivity> maryActivityFeed = activityManager.getActivityFeed(maryIdentity);
+    assertEquals("maryActivityFeed.size() must return 6", 6, maryActivityFeed.size());
+
+    relationshipManager.remove(demoMaryConnection);
+  }
+
   public void testRemoveLike() throws Exception {
     ExoSocialActivity demoActivity = new ExoSocialActivityImpl();
     demoActivity.setTitle("demo activity");
@@ -1369,6 +1601,222 @@ public class ActivityManagerRDBMSTest extends AbstractCoreTest {
 
     demoActivity = activityManager.getActivity(demoActivity.getId());
     assertEquals("demoActivity.getLikeIdentityIds().length must return: 0", 0, demoActivity.getLikeIdentityIds().length);
+  }
+
+  /**
+   * Test {@link ActivityManager#recordActivity(Identity, String, String)}
+   * 
+   * @throws Exception
+   * @since 1.2.0-Beta3
+   */
+  public void testRecordActivityWithTypeTitle() throws Exception {
+    String DEFAULT_ACTIVITY_TYPE = "DEFAULT_ACTIVITY";
+    String RELATIONSHIP_ACTIVITY_TYPE = "exosocial:relationship";
+    String DOC_ACTIVITY_TYPE = "DOC_ACTIVITY";
+    String LINK_ACTIVITY_TYPE = "LINK_ACTIVITY";
+    String EMOTION_ACTIVITY_TYPE = "EMOTION_ACTIVITY";
+
+    String activityTitle = "activity title";
+    String userId = demoIdentity.getId();
+
+    ExoSocialActivity activity = null;
+
+    activity = activityManager.recordActivity(demoIdentity, DEFAULT_ACTIVITY_TYPE, activityTitle);
+    tearDownActivityList.add(activity);
+
+    activity = activityManager.getActivity(activity.getId());
+    assertNotNull("activity must not be null", activity);
+    assertEquals("activity.getTitle() must return: " + activityTitle, activityTitle, activity.getTitle());
+    assertEquals("activity.getUserId() must return: " + userId, userId, activity.getUserId());
+    assertEquals("activity.getType() must return: " + DEFAULT_ACTIVITY_TYPE, DEFAULT_ACTIVITY_TYPE, activity.getType());
+
+    activity = activityManager.recordActivity(demoIdentity, RELATIONSHIP_ACTIVITY_TYPE, activityTitle);
+    tearDownActivityList.add(activity);
+
+    activity = activityManager.getActivity(activity.getId());
+    assertNotNull("activity must not be null", activity);
+    assertEquals("activity.getTitle() must return: " + activityTitle, activityTitle, activity.getTitle());
+    assertEquals("activity.getUserId() must return: " + userId, userId, activity.getUserId());
+    assertEquals("activity.getType() must return: " + RELATIONSHIP_ACTIVITY_TYPE, RELATIONSHIP_ACTIVITY_TYPE, activity.getType());
+
+    activity = activityManager.recordActivity(demoIdentity, DOC_ACTIVITY_TYPE, activityTitle);
+    tearDownActivityList.add(activity);
+
+    activity = activityManager.getActivity(activity.getId());
+    assertNotNull("activity must not be null", activity);
+    assertEquals("activity.getTitle() must return: " + activityTitle, activityTitle, activity.getTitle());
+    assertEquals("activity.getUserId() must return: " + userId, userId, activity.getUserId());
+    assertEquals("activity.getType() must return: " + DOC_ACTIVITY_TYPE, DOC_ACTIVITY_TYPE, activity.getType());
+
+    activity = activityManager.recordActivity(demoIdentity, LINK_ACTIVITY_TYPE, activityTitle);
+    tearDownActivityList.add(activity);
+
+    activity = activityManager.getActivity(activity.getId());
+    assertNotNull("activity must not be null", activity);
+    assertEquals("activity.getTitle() must return: " + activityTitle, activityTitle, activity.getTitle());
+    assertEquals("activity.getUserId() must return: " + userId, userId, activity.getUserId());
+    assertEquals("activity.getType() must return: " + LINK_ACTIVITY_TYPE, LINK_ACTIVITY_TYPE, activity.getType());
+
+    activity = activityManager.recordActivity(demoIdentity, EMOTION_ACTIVITY_TYPE, activityTitle);
+    tearDownActivityList.add(activity);
+
+    activity = activityManager.getActivity(activity.getId());
+    assertNotNull("activity must not be null", activity);
+    assertEquals("activity.getTitle() must return: " + activityTitle, activityTitle, activity.getTitle());
+    assertEquals("activity.getUserId() must return: " + userId, userId, activity.getUserId());
+    assertEquals("activity.getType() must return: " + EMOTION_ACTIVITY_TYPE, EMOTION_ACTIVITY_TYPE, activity.getType());
+  }
+
+  /**
+   * Test
+   * {@link ActivityManager#recordActivity(Identity, String, String, String)}
+   * 
+   * @throws Exception
+   * @since 1.2.0-Beta3
+   */
+  public void testRecordActivityWithTypeTitleBody() throws Exception {
+    String DEFAULT_ACTIVITY_TYPE = "DEFAULT_ACTIVITY";
+    String RELATIONSHIP_ACTIVITY_TYPE = "exosocial:relationship";
+    String DOC_ACTIVITY_TYPE = "DOC_ACTIVITY";
+    String LINK_ACTIVITY_TYPE = "LINK_ACTIVITY";
+    String EMOTION_ACTIVITY_TYPE = "EMOTION_ACTIVITY";
+
+    String activityTitle = "activity title";
+    String userId = demoIdentity.getId();
+    String activityBody = "activity body";
+
+    ExoSocialActivity activity = null;
+
+    activity = activityManager.recordActivity(demoIdentity, DEFAULT_ACTIVITY_TYPE, activityTitle, activityBody);
+    tearDownActivityList.add(activity);
+
+    activity = activityManager.getActivity(activity.getId());
+    assertNotNull("activity must not be null", activity);
+    assertEquals("activity.getTitle() must return: " + activityTitle, activityTitle, activity.getTitle());
+    assertEquals("activity.getUserId() must return: " + userId, userId, activity.getUserId());
+    assertEquals("activity.getType() must return: " + DEFAULT_ACTIVITY_TYPE, DEFAULT_ACTIVITY_TYPE, activity.getType());
+    assertEquals("activity.getBody() must return: " + activityBody, activityBody, activity.getBody());
+
+    activity = activityManager.recordActivity(demoIdentity, RELATIONSHIP_ACTIVITY_TYPE, activityTitle, activityBody);
+    tearDownActivityList.add(activity);
+
+    activity = activityManager.getActivity(activity.getId());
+    assertNotNull("activity must not be null", activity);
+    assertEquals("activity.getTitle() must return: " + activityTitle, activityTitle, activity.getTitle());
+    assertEquals("activity.getUserId() must return: " + userId, userId, activity.getUserId());
+    assertEquals("activity.getType() must return: " + RELATIONSHIP_ACTIVITY_TYPE, RELATIONSHIP_ACTIVITY_TYPE, activity.getType());
+    assertEquals("activity.getBody() must return: " + activityBody, activityBody, activity.getBody());
+
+    activity = activityManager.recordActivity(demoIdentity, DOC_ACTIVITY_TYPE, activityTitle, activityBody);
+    tearDownActivityList.add(activity);
+
+    activity = activityManager.getActivity(activity.getId());
+    assertNotNull("activity must not be null", activity);
+    assertEquals("activity.getTitle() must return: " + activityTitle, activityTitle, activity.getTitle());
+    assertEquals("activity.getUserId() must return: " + userId, userId, activity.getUserId());
+    assertEquals("activity.getType() must return: " + DOC_ACTIVITY_TYPE, DOC_ACTIVITY_TYPE, activity.getType());
+    assertEquals("activity.getBody() must return: " + activityBody, activityBody, activity.getBody());
+
+    activity = activityManager.recordActivity(demoIdentity, LINK_ACTIVITY_TYPE, activityTitle, activityBody);
+    tearDownActivityList.add(activity);
+
+    activity = activityManager.getActivity(activity.getId());
+    assertNotNull("activity must not be null", activity);
+    assertEquals("activity.getTitle() must return: " + activityTitle, activityTitle, activity.getTitle());
+    assertEquals("activity.getUserId() must return: " + userId, userId, activity.getUserId());
+    assertEquals("activity.getType() must return: " + LINK_ACTIVITY_TYPE, LINK_ACTIVITY_TYPE, activity.getType());
+    assertEquals("activity.getBody() must return: " + activityBody, activityBody, activity.getBody());
+
+    activity = activityManager.recordActivity(demoIdentity, EMOTION_ACTIVITY_TYPE, activityTitle, activityBody);
+    tearDownActivityList.add(activity);
+
+    activity = activityManager.getActivity(activity.getId());
+    assertNotNull("activity must not be null", activity);
+    assertEquals("activity.getTitle() must return: " + activityTitle, activityTitle, activity.getTitle());
+    assertEquals("activity.getUserId() must return: " + userId, userId, activity.getUserId());
+    assertEquals("activity.getType() must return: " + EMOTION_ACTIVITY_TYPE, EMOTION_ACTIVITY_TYPE, activity.getType());
+    assertEquals("activity.getBody() must return: " + activityBody, activityBody, activity.getBody());
+  }
+
+  /**
+   * Test {@link ActivityManager#recordActivity(Identity, ExoSocialActivity))}
+   * 
+   * @throws Exception
+   * @since 1.2.0-Beta3
+   */
+  public void testRecordActivity() throws Exception {
+    String activityTitle = "activity title";
+    String userId = demoIdentity.getId();
+    ExoSocialActivity activity = new ExoSocialActivityImpl();
+    activity.setTitle(activityTitle);
+    activity.setUserId(userId);
+    activityManager.recordActivity(demoIdentity, activity);
+
+    activity = activityManager.getActivity(activity.getId());
+    assertNotNull("activity must not be null", activity);
+    assertEquals("activity.getTitle() must return: " + activityTitle, activityTitle, activity.getTitle());
+    assertEquals("activity.getUserId() must return: " + userId, userId, activity.getUserId());
+
+    tearDownActivityList.add(activity);
+  }
+
+  /**
+   * Test {@link ActivityManager#getActivityFilesIds(ExoSocialActivity))}
+   * 
+   * @throws Exception
+   */
+  public void testGetActivityFilesIds() throws Exception {
+    ExoSocialActivity demoActivity = new ExoSocialActivityImpl();
+    demoActivity.setTitle("title");
+    demoActivity.setUserId(demoActivity.getId());
+    Map<String, String> templateParams = new HashMap<String, String>();
+    demoActivity.setTemplateParams(templateParams);
+    URL resource = getClass().getResource("/test.png");
+    uploadService.createUploadResource("10", resource.getPath(), "test.png", "image/png");
+    ActivityFile activityFile = new ActivityFile("10",
+                                                 "file",
+                                                 "test.png",
+                                                 "image/png",
+                                                 new ByteArrayInputStream("test.png".getBytes()),
+                                                 new Date().getTime());
+    List<ActivityFile> files = new ArrayList<>();
+    files.add(activityFile);
+    demoActivity.setFiles(files);
+    activityManager.saveActivityNoReturn(demoIdentity, demoActivity);
+    assertEquals(1, activityManager.getActivityFilesIds(demoActivity).size());
+
+  }
+
+  /**
+   * Test {@link ActivityManager#getActivityFileById(long)}
+   * (ExoSocialActivity))}
+   * 
+   * @throws Exception
+   */
+  public void testGetActivityFileById() throws Exception {
+    ExoSocialActivity demoActivity = new ExoSocialActivityImpl();
+    demoActivity.setTitle("title");
+    demoActivity.setUserId(demoActivity.getId());
+    Map<String, String> templateParams = new HashMap<String, String>();
+    demoActivity.setTemplateParams(templateParams);
+    URL resource = getClass().getResource("/test.png");
+    uploadService.createUploadResource("10", resource.getPath(), "test.png", "image/png");
+    ActivityFile activityFile = new ActivityFile("10",
+                                                 "file",
+                                                 "test.png",
+                                                 "image/png",
+                                                 new ByteArrayInputStream("test.png".getBytes()),
+                                                 new Date().getTime());
+    List<ActivityFile> files = new ArrayList<>();
+    files.add(activityFile);
+    demoActivity.setFiles(files);
+    activityManager.saveActivityNoReturn(demoIdentity, demoActivity);
+    assertEquals(1, activityManager.getActivityFilesIds(demoActivity).size());
+    String fileID = activityManager.getActivityFilesIds(demoActivity).stream().findAny().orElse(null);
+    assertNotNull(fileID);
+    ActivityFile activityGotFile = activityManager.getActivityFileById(Long.valueOf(fileID));
+    assertEquals("test.png", activityGotFile.getName());
+
   }
 
   public void testRemoveLikeSubComment() throws Exception {
@@ -1429,6 +1877,113 @@ public class ActivityManagerRDBMSTest extends AbstractCoreTest {
     assertEquals(0, johnActivities.load(0, 10).length);
   }
 
+  public void testDisableActivityType() {
+    String activityTitle = "activity title";
+    String userId = johnIdentity.getId();
+    ExoSocialActivity activity = new ExoSocialActivityImpl();
+    activity.setTitle(activityTitle);
+    activity.setUserId(userId);
+
+    // Disabled activity Type
+    activity.setType("cs-calendar:spaces");
+
+    activityManager.saveActivityNoReturn(johnIdentity, activity);
+    assertNull(activity.getId());
+
+    // Disabled Custom activity Type
+    activity.setType("MY_ACTIVITY");
+
+    activityManager.saveActivityNoReturn(johnIdentity, activity);
+    assertNull(activity.getId());
+
+    // enabled activity Types
+    activity.setType("DEFAULT_ACTIVITY");
+    activityManager.saveActivityNoReturn(johnIdentity, activity);
+    assertNotNull(activity.getId());
+    activity = activityManager.getActivity(activity.getId());
+    assertNotNull(activity);
+    tearDownActivityList.add(activity);
+  }
+
+  public void testCommentOnDisabledActivity() {
+    String activityTitle = "disabled activity";
+    String commentTitle = "Comment title";
+    String userId = johnIdentity.getId();
+    ExoSocialActivity activity = new ExoSocialActivityImpl();
+    activity.setTitle(activityTitle);
+    activity.setUserId(userId);
+
+    // Disabled activity Type
+    activity.setType("cs-calendar:spaces");
+    activityManager.saveActivityNoReturn(johnIdentity, activity);
+    assertNull(activity.getId());
+
+    // demo comments on john's activity
+    ExoSocialActivity comment = new ExoSocialActivityImpl();
+    comment.setTitle(commentTitle);
+    comment.setUserId(demoIdentity.getId());
+    // add comment on disabled activity
+    activityManager.saveComment(activity, comment);
+    // OK
+    assertNull(comment.getId());
+  }
+
+  public void testCommentWithDisabledCommentActivityType() {
+    String activityTitle = "disabled activity";
+    String commentTitle = "Comment title";
+    String userId = johnIdentity.getId();
+    ExoSocialActivity activity = new ExoSocialActivityImpl();
+    activity.setTitle(activityTitle);
+    activity.setUserId(userId);
+    activity.setType("EnableType");
+    activityManager.saveActivityNoReturn(johnIdentity, activity);
+    assertNotNull(activity.getId());
+
+    // demo comments on john's activity
+    ExoSocialActivity comment = new ExoSocialActivityImpl();
+    comment.setTitle(commentTitle);
+    // Disabled activity Type
+    comment.setType("cs-calendar:spaces");
+    comment.setUserId(demoIdentity.getId());
+    // add comment on disabled activity
+    activityManager.saveComment(activity, comment);
+    // OK
+    assertNull(comment.getId());
+  }
+
+  public void testMentionActivityOnOthersStream() throws Exception {
+    relationshipManager.inviteToConnect(rootIdentity, demoIdentity);
+    relationshipManager.confirm(demoIdentity, rootIdentity);
+
+    List<ExoSocialActivity> activities = activityManager.getActivityFeedWithListAccess(rootIdentity).loadAsList(0, 10);
+    assertEquals(0, activities.size());
+    activities = activityManager.getActivitiesWithListAccess(rootIdentity).loadAsList(0, 10);
+    assertEquals(0, activities.size());
+    activities = activityManager.getActivityFeedWithListAccess(demoIdentity).loadAsList(0, 10);
+    assertEquals(0, activities.size());
+    activities = activityManager.getActivitiesWithListAccess(demoIdentity).loadAsList(0, 10);
+    assertEquals(0, activities.size());
+
+    // root post on demo's stream
+    ExoSocialActivity activity = new ExoSocialActivityImpl();
+    activity.setTitle("hello @demo");
+    activity.setUserId(rootIdentity.getId());
+    activityManager.saveActivityNoReturn(demoIdentity, activity);
+    tearDownActivityList.add(activity);
+
+    activity = activityManager.getActivity(activity.getId());
+    assertEquals(1, activity.getMentionedIds().length);
+
+    activities = activityManager.getActivityFeedWithListAccess(rootIdentity).loadAsList(0, 10);
+    assertEquals(1, activities.size());
+    activities = activityManager.getActivitiesWithListAccess(rootIdentity).loadAsList(0, 10);
+    assertEquals(1, activities.size());
+    activities = activityManager.getActivityFeedWithListAccess(demoIdentity).loadAsList(0, 10);
+    assertEquals(1, activities.size());
+    activities = activityManager.getActivitiesWithListAccess(demoIdentity).loadAsList(0, 10);
+    assertEquals(1, activities.size());
+  }
+
   /**
    * Test {@link ActivityManager#getActivitiesCount(Identity)}
    * 
@@ -1436,12 +1991,11 @@ public class ActivityManagerRDBMSTest extends AbstractCoreTest {
    * @since 1.2.0-Beta3
    */
   public void testGetActivitiesCount() throws Exception {
-    int count = activityManager.getActivitiesWithListAccess(rootIdentity).getSize();
-    assertEquals("count must be: 0", 0, count);
+    int oldCount = activityManager.getActivitiesCount(rootIdentity);
 
     populateActivityMass(rootIdentity, 30);
-    count = activityManager.getActivitiesWithListAccess(rootIdentity).getSize();
-    assertEquals("count must be: 30", 30, count);
+    int count = activityManager.getActivitiesCount(rootIdentity);
+    assertEquals("count must be: 30", oldCount + 30, count);
   }
 
   public void testSaveManyComments() throws Exception {
@@ -1691,23 +2245,120 @@ public class ActivityManagerRDBMSTest extends AbstractCoreTest {
   }
 
   /**
-   * Populates activity.
-   * 
-   * @param user
-   * @param number
+   * Test posting activities in case of user is disabled. Activity streams of
+   * disabled users should not receive any new activity until the user account
+   * is re-enabled. - john and demo post some activities on each user's stream.
+   * - make connection between demo and john and check activities count. -
+   * disable demo and check the number of activities of john. - demo and john
+   * post activities on demo (disabled) and check if posting successfully or
+   * not. - re-enable demo and post activities on demo stream to check if
+   * posting successfully or not.
    */
-  private void populateActivityMass(Identity user, int number) {
-    for (int i = 0; i < number; i++) {
-      ExoSocialActivity activity = new ExoSocialActivityImpl();
-      ;
-      activity.setTitle("title " + i);
-      activity.setUserId(user.getId());
-      try {
-        activityManager.saveActivityNoReturn(user, activity);
-      } catch (Exception e) {
-        LOG.error("can not save activity.", e);
-      }
-    }
+  public void testActivitiesOfDisableUsers() throws Exception {
+    this.populateActivityMass(demoIdentity, 3);
+    this.populateActivityMass(johnIdentity, 3);
+
+    RealtimeListAccess<ExoSocialActivity> demoActivities = activityManager.getActivityFeedWithListAccess(demoIdentity);
+    assertEquals(3, demoActivities.getSize());
+
+    RealtimeListAccess<ExoSocialActivity> johnActivities = activityManager.getActivityFeedWithListAccess(johnIdentity);
+    assertEquals(3, johnActivities.getSize());
+
+    // john post activity with mention case.
+    createActivityHasMention(johnIdentity, demoIdentity);
+
+    demoActivities = activityManager.getActivityFeedWithListAccess(demoIdentity);
+    assertEquals(4, demoActivities.getSize());
+
+    // demo connect to john
+    Relationship demoJohnConnection = relationshipManager.inviteToConnect(demoIdentity, johnIdentity);
+    relationshipManager.confirm(demoIdentity, johnIdentity);
+
+    demoActivities = activityManager.getActivityFeedWithListAccess(demoIdentity);
+    assertEquals(7, demoActivities.getSize());
+
+    johnActivities = activityManager.getActivityFeedWithListAccess(johnIdentity);
+    assertEquals(7, johnActivities.getSize());
+
+    // john post activity.
+    createActivity(johnIdentity);
+
+    demoActivities = activityManager.getActivityFeedWithListAccess(demoIdentity);
+    assertEquals(8, demoActivities.getSize());
+    johnActivities = activityManager.getActivityFeedWithListAccess(johnIdentity);
+    assertEquals(8, johnActivities.getSize());
+
+    // disable demo
+    identityManager.processEnabledIdentity(demoIdentity.getRemoteId(), false);
+    demoIdentity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, demoIdentity.getRemoteId(), true);
+
+    // john get all activities. existing activities of demo still included.
+    johnActivities = activityManager.getActivityFeedWithListAccess(johnIdentity);
+    assertEquals(8, johnActivities.getSize());
+
+    // john post activity, demo is in disabling status so activity reference is
+    // not created.
+    createActivity(johnIdentity);
+
+    // john post activity with mention case, demo is in disabling status so
+    // activity reference is not created.
+    createActivityHasMention(johnIdentity, demoIdentity);
+
+    //
+    demoActivities = activityManager.getActivityFeedWithListAccess(demoIdentity);
+    assertEquals(8, demoActivities.getSize());
+    johnActivities = activityManager.getActivityFeedWithListAccess(johnIdentity);
+    assertEquals(10, johnActivities.getSize());
+
+    // check if john can post on demo stream
+    ExoSocialActivity johnPostOnDemoActivity = new ExoSocialActivityImpl();
+
+    johnPostOnDemoActivity.setTitle("john post on demo's stream.");
+    johnPostOnDemoActivity.setUserId(johnIdentity.getId());
+    activityManager.saveActivityNoReturn(demoIdentity, johnPostOnDemoActivity);
+
+    demoActivities = activityManager.getActivityFeedWithListAccess(demoIdentity);
+    assertEquals(8, demoActivities.getSize());
+    johnActivities = activityManager.getActivityFeedWithListAccess(johnIdentity);
+    assertEquals(10, johnActivities.getSize());
+
+    // check if demo still can post activity on his stream
+    ExoSocialActivity activity = new ExoSocialActivityImpl();
+    activity.setTitle("demo post on his stream.");
+    activity.setUserId(demoIdentity.getId());
+    activityManager.saveActivityNoReturn(demoIdentity, activity);
+
+    demoActivities = activityManager.getActivityFeedWithListAccess(demoIdentity);
+    assertEquals(8, demoActivities.getSize());
+    johnActivities = activityManager.getActivityFeedWithListAccess(johnIdentity);
+    assertEquals(10, johnActivities.getSize());
+
+    // re-enable user
+    identityManager.processEnabledIdentity(demoIdentity.getRemoteId(), true);
+    demoIdentity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, demoIdentity.getRemoteId(), true);
+
+    demoActivities = activityManager.getActivityFeedWithListAccess(demoIdentity);
+    assertEquals(8, demoActivities.getSize());
+    johnActivities = activityManager.getActivityFeedWithListAccess(johnIdentity);
+    assertEquals(10, johnActivities.getSize());
+
+    // demo post on his stream
+    createActivity(demoIdentity);
+
+    demoActivities = activityManager.getActivityFeedWithListAccess(demoIdentity);
+    assertEquals(9, demoActivities.getSize());
+    johnActivities = activityManager.getActivityFeedWithListAccess(johnIdentity);
+    assertEquals(11, johnActivities.getSize());
+
+    // john post on demo stream
+    createActivityToOtherIdentity(johnIdentity, demoIdentity, 1);
+    demoActivities = activityManager.getActivityFeedWithListAccess(demoIdentity);
+    assertEquals(10, demoActivities.getSize());
+    johnActivities = activityManager.getActivityFeedWithListAccess(johnIdentity);
+    assertEquals(12, johnActivities.getSize());
+
+    //
+    relationshipManager.delete(demoJohnConnection);
   }
 
   private void createActivityToOtherIdentity(Identity posterIdentity,
@@ -1764,4 +2415,105 @@ public class ActivityManagerRDBMSTest extends AbstractCoreTest {
     spaceService.saveSpace(space, true);
     return space;
   }
+
+  /**
+   * Creates activity.
+   * 
+   * @return ExoSocialActivity
+   */
+  private ExoSocialActivity createActivity() {
+    String activityTitle = "activity title";
+    String userId = rootIdentity.getId();
+    ExoSocialActivity activity = new ExoSocialActivityImpl();
+    activity.setTitle(activityTitle);
+    activity.setUserId(userId);
+    activityManager.saveActivityNoReturn(activity);
+    return activityManager.getActivity(activity.getId());
+  }
+
+  /**
+   * Creates comment.
+   * 
+   * @param activity
+   * @param type
+   * @param titleId
+   * @return ExoSocialActivity
+   */
+  private ExoSocialActivity createComment(ExoSocialActivity activity, String type, String titleId) {
+    ExoSocialActivity comment = new ExoSocialActivityImpl();
+    comment.setUserId(rootIdentity.getId());
+    comment.setTemplateParams(new HashMap<String, String>());
+    comment.setTitle("comment title");
+    comment.setType(type);
+    comment.setTitleId(titleId);
+    activityManager.saveComment(activity, comment);
+    return activityManager.getActivity(comment.getId());
+  }
+
+  /**
+   *
+   */
+  /*
+   * public void testAddProviders() { activityManager.addProcessor(new
+   * FakeProcessor(10)); activityManager.addProcessor(new FakeProcessor(9));
+   * activityManager.addProcessor(new FakeProcessor(8)); ExoSocialActivity
+   * activity = new ExoSocialActivityImpl(); activity.setTitle("Hello");
+   * activityManager.processActivitiy(activity); //just verify that we run in
+   * priority order assertEquals("Hello-8-9-10", activity.getTitle()); } class
+   * FakeProcessor extends BaseActivityProcessorPlugin { public
+   * FakeProcessor(int priority) { super(null); super.priority = priority; }
+   * @Override public void processActivity(ExoSocialActivity activity) {
+   * activity.setTitle(activity.getTitle() + "-" + priority); } }
+   */
+
+  private void createActivityHasMention(Identity poster, Identity mentionedUser) {
+    ExoSocialActivity activity = new ExoSocialActivityImpl();
+    activity.setTitle("Hi @" + mentionedUser.getRemoteId());
+    activity.setUserId(poster.getId());
+    try {
+      activityManager.saveActivityNoReturn(poster, activity);
+      tearDownActivityList.add(activity);
+    } catch (Exception e) {
+      LOG.error("can not save activity.", e);
+    }
+  }
+
+  /**
+   * Populates activity.
+   * 
+   * @param user
+   * @param number
+   */
+  private void populateActivityMass(Identity user, int number) {
+    for (int i = 0; i < number; i++) {
+      ExoSocialActivity activity = new ExoSocialActivityImpl();
+      ;
+      activity.setTitle("title " + i);
+      activity.setUserId(user.getId());
+      try {
+        activityManager.saveActivityNoReturn(user, activity);
+        tearDownActivityList.add(activity);
+      } catch (Exception e) {
+        LOG.error("can not save activity.", e);
+      }
+    }
+  }
+
+  /**
+   * Creates activity on user's stream.
+   * 
+   * @param user
+   */
+  private void createActivity(Identity user) {
+    ExoSocialActivity activity = new ExoSocialActivityImpl();
+    activity.setTitle("title " + System.currentTimeMillis());
+    activity.setUserId(user.getId());
+    try {
+      activityManager.saveActivityNoReturn(user, activity);
+      tearDownActivityList.add(activity);
+    } catch (Exception e) {
+      LOG.error("can not save activity.", e);
+    }
+  }
+
 }
