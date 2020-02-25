@@ -261,6 +261,10 @@ public class ActivityManagerImpl implements ActivityManager {
     // pass the previous mentions in the activity, since there is no way to do
     // so,
     // as a solution we pass them throw the activity's template params
+    if (activityId == null) {
+      LOG.debug("Activity Could not be update because activity id is null.");
+      return;
+    }
     String[] previousMentions = getActivity(activityId).getMentionedIds();
     activityStorage.updateActivity(existingActivity);
 
