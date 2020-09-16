@@ -1,5 +1,6 @@
 <template>
   <v-app v-if="navigations && navigations.length" class="spaceMenuParent white">
+    <call-nav />
     <v-dialog
       v-if="isMobile"
       :value="true"
@@ -47,7 +48,13 @@
 </template>
 
 <script>
+import CallNav from './CallNav.vue';
+import {getCallComponents} from '../extension.js';
+
 export default {
+  components: {
+    'call-nav' : CallNav
+  },
   props: {
     navigations: {
       type: Array,
@@ -82,6 +89,9 @@ export default {
         });
     });
     document.dispatchEvent(new CustomEvent('hideTopBarLoading'));
+
+    this.callComponentsTop = getCallComponents();
+    console.log(`callComponentsTop: ${this.callComponentsTop}`);
   },
 };
 </script>
