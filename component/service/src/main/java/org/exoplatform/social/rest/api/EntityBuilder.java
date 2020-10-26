@@ -396,6 +396,7 @@ public class EntityBuilder {
     }
 
     spaceEntity.setDisplayName(space.getDisplayName());
+    spaceEntity.setLastUpdatedTime(space.getLastUpdatedTime());
     spaceEntity.setTemplate(space.getTemplate());
     spaceEntity.setPrettyName(space.getPrettyName());
     spaceEntity.setGroupId(space.getGroupId());
@@ -407,7 +408,7 @@ public class EntityBuilder {
     spaceEntity.setSubscription(space.getRegistration());
     spaceEntity.setMembersCount(space.getMembers().length);
     spaceEntity.setManagersCount(space.getManagers().length);
-
+    updateCachedEtagValue((int) space.getLastUpdatedTime());
     return spaceEntity;
   }
   
