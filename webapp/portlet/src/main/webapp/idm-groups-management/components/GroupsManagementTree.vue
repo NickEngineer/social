@@ -192,6 +192,7 @@ export default {
         }
       }).then(data => {
         const groups = data && data.entities || [];
+        groups.forEach(group => group.label = decodeURI(group.label));
         if (parentGroup) {
           parentGroup.childrenSize = data && data.size || [];
           if (groups.length) {

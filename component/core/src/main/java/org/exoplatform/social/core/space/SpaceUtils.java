@@ -16,6 +16,8 @@
  */
 package org.exoplatform.social.core.space;
 
+import java.net.URLDecoder;
+import java.net.URLEncoder;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -839,7 +841,7 @@ public class SpaceUtils {
         throw new SpaceException(SpaceException.Code.SPACE_ALREADY_EXIST);
       }
       newGroup.setGroupName(shortName);
-      newGroup.setLabel(groupLabel);
+      newGroup.setLabel(URLEncoder.encode(groupLabel, "UTF-8"));
       newGroup.setDescription("the " + parentGroup.getId() + "/" + shortName + " group");
       groupHandler.addChild(parentGroup, newGroup, true);
     } catch (Exception e) {
