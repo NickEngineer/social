@@ -6,7 +6,6 @@
       :keyword="keyword"
       :filter="filter"
       :people-count="peopleCount"
-      :skeleton="skeleton"
       :is-manager="isManager"
       @keyword-changed="keyword = $event"
       @filter-changed="filter = $event"
@@ -18,7 +17,6 @@
       :keyword="keyword"
       :filter="filter"
       :loading-people="loadingPeople"
-      :skeleton="skeleton"
       :space-id="spaceId"
       :people-count="peopleCount"
       :is-manager="isManager"
@@ -52,7 +50,6 @@ export default {
     keyword: null,
     peopleCount: 0,
     loadingPeople: false,
-    skeleton: true,
     space: {}
   }),
   created() {
@@ -65,7 +62,7 @@ export default {
         icon: 'uiIconTrash',
         order: 0,
         enabled: (user) => {
-          return (this.filter === 'member' || this.filter === 'manager') && user.isMember && !user.isGroupBound;
+          return (this.filter === 'member' || this.filter === 'manager' || this.filter === 'redactor') && user.isMember && !user.isGroupBound;
         },
         click: (user) => {
           this.$spaceService.removeMember(eXo.env.portal.spaceName, user.username)
@@ -77,7 +74,7 @@ export default {
         icon: 'uiIconMemberAdmin',
         order: 1,
         enabled: (user) => {
-          return (this.filter === 'member' || this.filter === 'manager') && (user.isManager || user.isSpacesManager);
+          return (this.filter === 'member' || this.filter === 'manager' || this.filter === 'redactor') && (user.isManager || user.isSpacesManager);
         },
         click: (user) => {
           this.$spaceService.removeManager(eXo.env.portal.spaceName, user.username)
@@ -89,7 +86,7 @@ export default {
         icon: 'uiIconMemberAdmin',
         order: 1,
         enabled: (user) => {
-          return user.enabled && !user.deleted && (this.filter === 'member' || this.filter === 'manager') && !user.isManager;
+          return user.enabled && !user.deleted && (this.filter === 'member' || this.filter === 'manager' || this.filter === 'redactor') && !user.isManager;
         },
         click: (user) => {
           this.$spaceService.promoteManager(eXo.env.portal.spaceDisplayName, user.username)
@@ -101,15 +98,10 @@ export default {
         icon: 'uiIconEditMembership',
         order: 1,
         enabled: (user) => {
-          return user.enabled && !user.deleted && (this.filter === 'member' || this.filter === 'manager') && !user.isSpaceRedactor;
+          return user.enabled && !user.deleted && (this.filter === 'member' || this.filter === 'manager' || this.filter === 'redactor') && !user.isSpaceRedactor;
         },
         click: (user) => {
-          const membership = {
-            groupId: this.space.groupId,
-            userName: user.username,
-            membershipType: 'redactor'
-          };
-          this.$spaceService.setAsRedactor(membership)
+          this.$spaceService.setAsRedactor(eXo.env.portal.spaceDisplayName, user.username)
             .then(() => this.$refs.spaceMembers.searchPeople());
         },
       });
@@ -118,11 +110,10 @@ export default {
         icon: 'uiIconEditMembership',
         order: 1,
         enabled: (user) => {
-          return user.isSpaceRedactor && (this.filter === 'member' || this.filter === 'manager');
+          return user.isSpaceRedactor && (this.filter === 'member' || this.filter === 'manager' || this.filter === 'redactor');
         },
         click: (user) => {
-          const id = `redactor:${user.username}:${this.space.groupId}`;
-          this.$spaceService.removeRedactor(id)
+          this.$spaceService.removeRedactor(eXo.env.portal.spaceName, user.username)
             .then(() => this.$refs.spaceMembers.searchPeople());
         },
       });
@@ -174,9 +165,6 @@ export default {
     peopleLoaded(peopleCount) {
       document.dispatchEvent(new CustomEvent('hideTopBarLoading'));
       this.peopleCount = peopleCount;
-      if (this.skeleton) {
-        this.skeleton = false;
-      }
     }
   },
 };

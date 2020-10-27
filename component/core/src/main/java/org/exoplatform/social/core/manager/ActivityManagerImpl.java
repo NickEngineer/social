@@ -402,6 +402,10 @@ public class ActivityManagerImpl implements ActivityManager {
    * {@inheritDoc}
    */
   public void saveLike(ExoSocialActivity existingActivity, Identity identity) {
+    // in order to avoid updating unnecessarily activity title, body and template params 
+    existingActivity.setTitle(null);
+    existingActivity.setBody(null);
+    existingActivity.setTemplateParams(null);
     String[] identityIds = existingActivity.getLikeIdentityIds();
     if (ArrayUtils.contains(identityIds, identity.getId())) {
       LOG.warn("activity is already liked by identity: " + identity);
@@ -422,6 +426,7 @@ public class ActivityManagerImpl implements ActivityManager {
    * {@inheritDoc}
    */
   public void deleteLike(ExoSocialActivity activity, Identity identity) {
+    // in order to avoid updating unnecessarily activity title, body and template params
     activity.setTitle(null);
     activity.setBody(null);
     activity.setTemplateParams(null);
@@ -695,17 +700,13 @@ public class ActivityManagerImpl implements ActivityManager {
   public boolean isActivityEditable(ExoSocialActivity activity, org.exoplatform.services.security.Identity viewer) {
     if (activity != null) {
       boolean enableEdit;
-      boolean enableManagerEdit;
       if (activity.isComment()) {
         enableEdit = enableEditComment;
-        enableManagerEdit = enableManagerEditComment;
       } else {
         enableEdit = enableEditActivity;
-        enableManagerEdit = enableManagerEditActivity;
       }
       Identity identity = identityManager.getOrCreateIdentity(OrganizationIdentityProvider.NAME, viewer.getUserId());
-      if (enableEdit && identity != null && (StringUtils.equals(identity.getId(), activity.getPosterId())
-          || (enableManagerEdit && viewer.getGroups().contains(userACL.getAdminGroups())))) {
+      if (enableEdit && identity != null && StringUtils.equals(identity.getId(), activity.getPosterId())) {
         return !activity.isComment() || !isAutomaticComment(activity);
       }
     }

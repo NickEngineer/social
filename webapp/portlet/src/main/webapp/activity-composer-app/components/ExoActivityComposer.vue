@@ -2,7 +2,8 @@
   <div id="activityComposer" class="activityComposer">
     <div v-if="!standalone" class="openLink">
       <a @click="openMessageComposer()">
-        <i class="uiIconEdit"></i>{{ link.replace('{0}', postTarget) }}
+        <i class="uiIconEdit"></i>
+        {{ link.replace('{0}', postTarget) }}
       </a>
     </div>
 
@@ -171,28 +172,43 @@ export default {
       }
     }
   },
-  mounted() {
-    this.postTarget = eXo.env.portal.spaceDisplayName || this.$t('activity.composer.post');
-    this.message = this.activityBody;
-
-    if (this.activityId) {
-      this.editActivity();
-    }
-  },
   created() {
     document.addEventListener('activity-composer-edit-activity', this.editActivity);
     document.addEventListener('activity-composer-extension-updated', this.refreshExtensions);
-    this.refreshExtensions();
+
+    this.postTarget = eXo.env.portal.spaceDisplayName || '';
+    if (!eXo.env.portal.spaceDisplayName){
+      this.link = this.$t('activity.composer.post');
+    }
+
+    this.$nextTick().then(() => {
+      this.$root.$emit('application-loaded');
+    });
+  },
+  mounted() {
+    this.$nextTick().then(() => {
+      this.refreshExtensions();
+      this.message = this.activityBody;
+  
+      if (this.activityId) {
+        this.editActivity();
+      }
+    });
   },
   methods: {
     refreshExtensions: function() {
+      const urls = [];
       this.activityComposerActions = getActivityComposerActionExtensions();
       this.activityComposerActions.forEach(action => {
         if (action.component) {
           this.actionsData[action.key] = action.component.model.value;
           this.actionsEvents[action.key] = action.component.events;
         }
+        if(action.resourceBundle) {
+          urls.push(`/portal/rest/i18n/bundle/${action.resourceBundle}-${eXo.env.portal.language}.json`);
+        }
       });
+      exoi18n.loadLanguageAsync(eXo.env.portal.language, urls);
     },
     editActivity(params) {
       params = params && params.detail;

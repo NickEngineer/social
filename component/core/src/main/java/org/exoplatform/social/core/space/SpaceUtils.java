@@ -25,6 +25,8 @@ import javax.portlet.RenderRequest;
 import javax.servlet.http.HttpServletRequest;
 
 import org.apache.commons.lang.StringUtils;
+import org.exoplatform.commons.utils.CommonsUtils;
+import org.exoplatform.web.url.navigation.NodeURL;
 import org.gatein.common.i18n.LocalizedString;
 import org.gatein.common.util.Tools;
 import org.gatein.pc.api.Portlet;
@@ -90,6 +92,8 @@ public class SpaceUtils {
   public static final String                                  MANAGER               = "manager";
 
   public static final String                                  MEMBER                = "member";
+  
+  public static final String                                  REDACTOR              = "redactor";
 
   public static final String                                  MENU_CONTAINER        = "Menu";
 
@@ -119,7 +123,7 @@ public class SpaceUtils {
   private static final String                                 REMOTE_CATEGORY_NAME  = "remote";
 
   private static final Pattern                                SPACE_NAME_PATTERN    =
-                                                                                 Pattern.compile("^([\\p{L}\\s\\d\'_&]+[\\s]?)+$");
+                                                                                 Pattern.compile("^([\\p{L}\\s\\d\'_&/-]+[\\s]?)+$");
 
   private static final String                                 PORTAL_PAGE_TITLE     = "portal:requestTitle";
 
@@ -412,6 +416,67 @@ public class SpaceUtils {
       }
     }
     return cleanedStr.toString().toLowerCase();
+  }
+
+  /**
+   * Rename label group
+   *
+   * @param space
+   */
+  public static void renameGroupLabel(Space space) {
+    try {
+      RequestLifeCycle.begin(PortalContainer.getInstance());
+      OrganizationService organizationService = CommonsUtils.getService(OrganizationService.class);
+      GroupHandler groupHandler = organizationService.getGroupHandler();
+      Group group = groupHandler.findGroupById(space.getGroupId());
+      group.setLabel(space.getDisplayName());
+      groupHandler.saveGroup(group, true);
+    } catch (Exception e) {
+      LOG.error(e.getMessage(), e);
+    } finally {
+      RequestLifeCycle.end();
+    }
+  }
+
+  /**
+   * Rename page node.
+   *
+   * @param space
+   * @return UserNode
+   */
+  public static UserNode renamePageNode(Space space) {
+
+    try {
+
+      DataStorage dataService = CommonsUtils.getService(DataStorage.class);
+      UserNode renamedNode = SpaceUtils.getSpaceUserNode(space);
+      UserNode parentNode = renamedNode.getParent();
+      String newNodeLabel = space.getDisplayName();
+      String newNodeName = SpaceUtils.cleanString(newNodeLabel);
+      renamedNode.setLabel(newNodeLabel);
+      renamedNode.setName(newNodeName);
+
+      Page page = dataService.getPage(renamedNode.getPageRef().format());
+      if (page != null) {
+        page.setTitle(newNodeLabel);
+        dataService.save(page);
+      }
+
+      SpaceUtils.getUserPortal().saveNode(parentNode, null);
+
+      space.setUrl(newNodeName);
+      SpaceUtils.changeAppPageTitle(renamedNode, newNodeLabel);
+
+      List<UserNode> userNodes = new ArrayList<>(renamedNode.getChildren());
+      for (UserNode childNode : userNodes) {
+        SpaceUtils.changeSpaceUrlPreference(childNode, space, newNodeLabel);
+        SpaceUtils.changeAppPageTitle(childNode, newNodeLabel);
+      }
+      return renamedNode;
+    } catch (Exception e) {
+      LOG.warn(e.getMessage(), e);
+      return null;
+    }
   }
 
   /**
@@ -833,6 +898,13 @@ public class SpaceUtils {
         removeUserFromGroupWithManagerMembership(userId, space.getGroupId());
       }
     }
+    
+    // remove users from group with role is redactor
+    if (space.getRedactors() != null) {
+      for (String userId : space.getRedactors()) {
+        removeUserFromGroupWithRedactorMembership(userId, space.getGroupId());
+      }
+    }
   }
 
   /**
@@ -906,6 +978,16 @@ public class SpaceUtils {
   public static void addUserToGroupWithMemberMembership(String remoteId, String groupId) {
     addUserToGroupWithMembership(remoteId, groupId, MEMBER);
   }
+  
+  /**
+   * Adds the user to group with the membership (redactor).
+   * 
+   * @param remoteId
+   * @param groupId
+   */
+  public static void addUserToGroupWithRedactorMembership(String remoteId, String groupId) {
+    addUserToGroupWithMembership(remoteId, groupId, REDACTOR);
+  }
 
   /**
    * Adds the user to group with the membership (manager).
@@ -919,7 +1001,7 @@ public class SpaceUtils {
   }
 
   /**
-   * Removes the user from group with the membership (member, manager).
+   * Removes the user from group with the membership (member, manager, redactor).
    * 
    * @param remoteId
    * @param groupId
@@ -941,10 +1023,10 @@ public class SpaceUtils {
           Membership mbShip = itr.next();
           memberShipHandler.removeMembership(mbShip.getId(), true);
         }
-      } else if (getUserACL().getAdminMSType().equals(membership)) {
+      } else {
         Membership memberShip = memberShipHandler.findMembershipByUserGroupAndType(remoteId,
                                                                                    groupId,
-                                                                                   getUserACL().getAdminMSType());
+                                                                                   membership);
         Membership any = memberShipHandler.findMembershipByUserGroupAndType(remoteId,
                                                                             groupId,
                                                                             MembershipTypeHandler.ANY_MEMBERSHIP_TYPE);
@@ -952,7 +1034,7 @@ public class SpaceUtils {
           memberShipHandler.removeMembership(any.getId(), true);
         }
         if (memberShip == null) {
-          LOG.info("User: " + remoteId + " is not a manager of group: " + groupId);
+          LOG.info("User: " + remoteId + " is not a " + membership + " of group: " + groupId);
           return;
         }
         UserHandler userHandler = organizationService.getUserHandler();
@@ -977,6 +1059,16 @@ public class SpaceUtils {
    */
   public static void removeUserFromGroupWithMemberMembership(String remoteId, String groupId) {
     removeUserFromGroupWithMembership(remoteId, groupId, MEMBER);
+  }
+  
+  /**
+   * Removes the user from group with redactor membership.
+   * 
+   * @param remoteId
+   * @param groupId
+   */
+  public static void removeUserFromGroupWithRedactorMembership(String remoteId, String groupId) {
+    removeUserFromGroupWithMembership(remoteId, groupId, REDACTOR);
   }
 
   /**
@@ -1789,6 +1881,27 @@ public class SpaceUtils {
     }
 
     return new ArrayList<String>(userNames);
+  }
+
+
+  /**
+   * Check if the user has the role redactor in that space
+   * @param userName
+   * @param spaceGroupId
+   * @return boolean true if the user has that role Or the role is not present in the space
+   * @throws Exception
+   */
+  public static boolean isRedactor (String userName, String spaceGroupId) throws Exception{
+    String REDACTOR_MEMBERSHIP_NAME = "redactor";
+
+    List<MembershipType> membershipTypes = getOrganizationService().getMembershipHandler().findMembershipTypesByGroup(spaceGroupId);
+    for(MembershipType membershipType : membershipTypes) {
+      if(REDACTOR_MEMBERSHIP_NAME.equals(membershipType.getName())) {
+        return getOrganizationService().getMembershipHandler().
+                findMembershipByUserGroupAndType(userName, spaceGroupId, REDACTOR_MEMBERSHIP_NAME) != null;
+      }
+    }
+    return true;
   }
 
   public static NodeContext<NodeContext<?>> loadNode(NavigationService navigationService,

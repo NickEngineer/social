@@ -759,6 +759,9 @@ public class RDBMSIdentityStorageImpl implements IdentityStorage {
     case MANAGER:
       status = Status.MANAGER;
       break;
+    case REDACTOR:
+      status = Status.REDACTOR;
+      break;
     case INVITED:
       status = Status.INVITED;
       break;
@@ -848,6 +851,14 @@ public class RDBMSIdentityStorageImpl implements IdentityStorage {
           return 0;
         }
         spaceMembers = Arrays.stream(space.getManagers())
+            .filter(username -> !excludedMembers.contains(username))
+            .collect(Collectors.toList());
+        break;
+      case REDACTOR:
+        if(space.getRedactors() == null || space.getRedactors().length == 0) {
+          return 0;
+        }
+        spaceMembers = Arrays.stream(space.getRedactors())
             .filter(username -> !excludedMembers.contains(username))
             .collect(Collectors.toList());
         break;

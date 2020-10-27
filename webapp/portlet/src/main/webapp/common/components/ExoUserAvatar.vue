@@ -8,7 +8,7 @@
         :size="size"
         :class="avatarClass"
         class="pull-left my-auto">
-        <img :src="avatarUrl" :tile="tile" />
+        <img :src="avatarUrl" :alt="title"/>
       </v-avatar>
       <div v-if="fullname || $slots.subTitle" class="pull-left ml-2 d-flex flex-column">
         <p v-if="fullname" :class="boldTitle && 'font-weight-bold'" class="text-truncate subtitle-2 text-color my-auto">
@@ -71,6 +71,16 @@ export default {
         return `${eXo.env.portal.context}/${eXo.env.portal.portalName}/profile/${this.username}`;
       },
     },
+    labels: {
+      type: Object,
+      default: null,
+    },
+    title: {
+      type: String,
+      default: function() {
+        return `${this.title}`;
+      }
+    },
   },
   data() {
     return {
@@ -79,20 +89,18 @@ export default {
         .toString()}`,
     };
   },
-  computed: {
-    labels() {
-      return {
-        CancelRequest: this.$t('spacesList.label.profile.CancelRequest'),
-        Confirm: this.$t('spacesList.label.profile.Confirm'),
-        Connect: this.$t('spacesList.label.profile.Connect'),
-        Ignore: this.$t('spacesList.label.profile.Ignore'),
-        RemoveConnection: this.$t('spacesList.label.profile.RemoveConnection'),
-        StatusTitle: this.$t('spacesList.label.profile.StatusTitle'),
-      };
-    },
-  },
   mounted() {
     if (this.username && this.tiptip) {
+      if (!this.labels) {
+        this.labels = {
+          CancelRequest: this.$t('spacesList.label.profile.CancelRequest'),
+          Confirm: this.$t('spacesList.label.profile.Confirm'),
+          Connect: this.$t('spacesList.label.profile.Connect'),
+          Ignore: this.$t('spacesList.label.profile.Ignore'),
+          RemoveConnection: this.$t('spacesList.label.profile.RemoveConnection'),
+          StatusTitle: this.$t('spacesList.label.profile.StatusTitle'),
+        };
+      }
       // TODO disable tiptip because of high CPU usage using its code
       this.initTiptip();
     }

@@ -22,7 +22,7 @@
   <parent>
     <artifactId>social-webapp</artifactId>
     <groupId>org.exoplatform.social</groupId>
-    <version>6.1.x-SNAPSHOT</version>
+    <version>6.1.x-maintenance-SNAPSHOT</version>
   </parent>
   <groupId>org.exoplatform.social</groupId>
   <artifactId>social-webapp-portlet</artifactId>
@@ -176,6 +176,14 @@
   <build>
     <finalName>social-portlet</finalName>
     <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-war-plugin</artifactId>
+        <configuration>
+          <includeEmptyDirectories>false</includeEmptyDirectories>
+          <packagingExcludes>WEB-INF/lib/*.jar,**/*.less,**/less/**,**/*.vue,css/lib/*,vue-app/**,js/mock/**/*,**-dev.*,**/main.js,**/initComponents.js,**/components</packagingExcludes>
+        </configuration>
+      </plugin>
       <plugin>
         <groupId>com.github.eirslett</groupId>
         <artifactId>frontend-maven-plugin</artifactId>

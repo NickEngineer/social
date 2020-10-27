@@ -6,8 +6,10 @@ import ExoSpaceAvatar from './components/ExoSpaceAvatar.vue';
 import ExoIdentitySuggester from './components/ExoIdentitySuggester.vue';
 import ExoActivityRichEditor from './components/ExoActivityRichEditor.vue';
 import DatePicker from './components/DatePicker.vue';
+import TimePicker from './components/TimePicker.vue';
 import DateFormat from './components/DateFormat.vue';
 import ExoModal from './components/ExoModal.vue';
+import ExtendedTextarea from './components/ExtendedTextarea.vue';
 
 const components = {
   'exo-user-avatars-list': ExoUserAvatarsList,
@@ -18,10 +20,72 @@ const components = {
   'exo-identity-suggester': ExoIdentitySuggester,
   'exo-activity-rich-editor': ExoActivityRichEditor,
   'date-picker': DatePicker,
+  'time-picker': TimePicker,
   'date-format': DateFormat,
   'exo-modal': ExoModal,
+  'extended-textarea': ExtendedTextarea,
 };
 
 for (const key in components) {
   Vue.component(key, components[key]);
 }
+
+Vue.directive('cacheable', {
+  bind(el, binding, vnode) {
+    const appId = el.id;
+    const cacheId = binding && binding.value && binding.value.cacheId || appId;
+
+    const mountApplication = function() {
+      const cachedAppElement = document.querySelector(`#UIPortalApplication #${appId}`);
+      if (cachedAppElement) {
+        // eslint-disable-next-line no-console
+        console.debug(`Replace application ${appId} with real content`);
+        cachedAppElement.parentElement.replaceChild(vnode.componentInstance.$root.$el, cachedAppElement);
+      } else {
+        // eslint-disable-next-line no-console
+        console.warn(`Application with identifier ${appId} was not found in page`);
+      }
+    };
+
+    const cacheDom = function() {
+      window.caches.open('portal-pwa-resources-dom')
+        .then(cache => {
+          if (cache) {
+            window.setTimeout(() => {
+              const domToCache = vnode.componentInstance.$root.$el.innerHTML
+                .replaceAll('<input ', '<input disabled ')
+                .replaceAll('<button ', '<button disabled ')
+                .replaceAll('<select ', '<select disabled ')
+                .replaceAll('<textarea ', '<textarea disabled ');
+              cache.put(`/dom-cache?id=${cacheId}`, new Response($(`<div>${domToCache}</div>`).html(), {
+                headers: {'content-type': 'text/html;charset=UTF-8'},
+              }));
+            }, 200);
+          }
+        });
+    };
+
+    vnode.componentInstance.$root.$once('application-mount', () => {
+      mountApplication();
+    });
+
+    vnode.componentInstance.$root.$on('application-loaded', () => {
+      cacheDom();
+      vnode.componentInstance.$root.$emit('application-mount');
+    });
+
+    vnode.componentInstance.$root.$on('application-cache', () => {
+      cacheDom();
+    });
+  },
+  inserted(el, binding, vnode) {
+    // Wait at maximum 3 seconds to refresh DOM with real application
+    // If the application didn't emitted the event 'application-loaded' yet
+    // To avoid having for a long time a static content only
+    // In addition, by using '$root.$once', we 're sure that the real application
+    // is mounted only once
+    window.setTimeout(() => {
+      vnode.componentInstance.$root.$emit('application-mount');
+    }, 3000);
+  },
+});

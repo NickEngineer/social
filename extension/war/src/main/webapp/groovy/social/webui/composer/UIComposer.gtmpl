@@ -31,27 +31,26 @@
   ExoFeatureService featureService = ExoContainerContext.getCurrentContainer().getComponentInstanceOfType(ExoFeatureService.class);
   boolean isMainStreamComposerEnabled = System.getProperty("exo.config.mainStreamComposer.enabled").equals("true");
   //check if space has redactors
-  Boolean spaceHasRedactors = false;
   Boolean isCurrentUserRedactor = false;
   if(uicomponent.getSpaceGroupId()) {
     String spaceGroupId = uicomponent.getSpaceGroupId();
-    List<String> spaceRedactors = SpaceUtils.findMembershipUsersByGroupAndTypes(spaceGroupId, "redactor");
-    if (!spaceRedactors.isEmpty()) {
-      spaceHasRedactors = true;
-      //check if connected user is redactor
-      String currentUserId = _ctx.getRequestContext().getRemoteUser();
-      isCurrentUserRedactor = spaceRedactors.contains(currentUserId);
-    }
+    String currentUserId = _ctx.getRequestContext().getRemoteUser();
+    isCurrentUserRedactor = SpaceUtils.isRedactor(currentUserId, spaceGroupId);
   }
+  def space = SpaceUtils.getSpaceByContext();
+  def spaceId = space == null ? "" : space.getId();
+
   if(featureService.isActiveFeature("new-composer")) {
-    if (uicomponent.getSpaceGroupId() != null && (!spaceHasRedactors || isCurrentUserRedactor) || (isMainStreamComposerEnabled && uicomponent.getSpaceGroupId() == null)) {
+    if (uicomponent.getSpaceGroupId() != null && isCurrentUserRedactor || (isMainStreamComposerEnabled && uicomponent.getSpaceGroupId() == null)) {
 %>
-<div id="activityComposer"></div>
-<script>
-  require(['SHARED/jquery', 'SHARED/ActivityComposer'], function(jq, activityComposerApp) {
-    activityComposerApp.init();
-  });
-</script>
+<div id="activityComposer" class="activityComposer">
+  <v-cacheable-dom-app cache-id="activityComposer_<%=spaceId%>"></v-cacheable-dom-app>
+  <script>
+    require(['SHARED/jquery', 'SHARED/ActivityComposer'], function(jq, activityComposerApp) {
+      activityComposerApp.init();
+    });
+  </script>
+</div>
 <%
     }
   }

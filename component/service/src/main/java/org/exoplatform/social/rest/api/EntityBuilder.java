@@ -301,6 +301,9 @@ public class EntityBuilder {
         Boolean isCurrent = (Boolean) experience.get(Profile.EXPERIENCES_IS_CURRENT);
         String startDate = (String) experience.get(Profile.EXPERIENCES_START_DATE);
         String endDate = (String) experience.get(Profile.EXPERIENCES_END_DATE);
+        if (!isCurrent && endDate.isEmpty()) {
+          isCurrent = true;
+        }
         experienceEntities.add(new ExperienceEntity(id, company, description, position, skills, isCurrent, startDate, endDate));
       }
       userEntity.setExperiences(experienceEntities);
@@ -359,7 +362,6 @@ public class EntityBuilder {
           identity = new LinkEntity(RestUtils.getRestUrl(IDENTITIES_TYPE, spaceIdentity.getId(), restPath));
         }
         spaceEntity.setIdentity(identity);
-        spaceEntity.setGroupId(space.getGroupId());
         spaceEntity.setHasBindings(space.hasBindings());
         spaceEntity.setTotalBoundUsers(groupSpaceBindingService.countBoundUsers(space.getId()));
         spaceEntity.setApplications(getSpaceApplications(space));
@@ -396,6 +398,7 @@ public class EntityBuilder {
     spaceEntity.setDisplayName(space.getDisplayName());
     spaceEntity.setTemplate(space.getTemplate());
     spaceEntity.setPrettyName(space.getPrettyName());
+    spaceEntity.setGroupId(space.getGroupId());
     spaceEntity.setDescription(StringEscapeUtils.unescapeHtml(space.getDescription()));
     spaceEntity.setUrl(LinkProvider.getSpaceUri(space.getPrettyName()));
     spaceEntity.setAvatarUrl(space.getAvatarUrl());
@@ -959,6 +962,7 @@ public class EntityBuilder {
     groupNodeEntity.setGroupName(groupName);
     String parentId = group.getParentId() == null ? "root" : group.getParentId();
     groupNodeEntity.setParentId(parentId);
+    groupNodeEntity.setBound(false);
     groupNodeEntity.setChildGroupNodesEntities(new ArrayList<>());
     return groupNodeEntity;
   }

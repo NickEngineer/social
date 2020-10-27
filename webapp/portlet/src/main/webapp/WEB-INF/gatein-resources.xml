@@ -34,6 +34,9 @@
         <module>eXoVueI18n</module>
       </depends>
       <depends>
+        <module>commonVueComponents</module>
+      </depends>
+      <depends>
         <module>extensionRegistry</module>
       </depends>
       <depends>
@@ -1159,6 +1162,9 @@
     </depends>
     <depends>
       <module>userPopupPlugin</module>
+    </depends>
+    <depends>
+      <module>spacePopupPlugin</module>
     </depends>
     <depends>
       <module>commons-editor</module>
